@@ -269,7 +269,12 @@ object SpsToSongConverter {
     // --- Helpers ---
 
     private fun sanitizeName(name: String): String {
-        return name.replace(Regex("""[/\\:*?"<>|]"""), " ").trim()
+        return name
+            .replace(Regex("""[/\\:*?"<>|]"""), " ")   // Windows-illegal chars
+            .replace(Regex("""[\x00-\x1F\x7F]"""), "")  // control characters
+            .replace(Regex("""[^\p{Print}\p{L}\p{M}\p{N}\p{P}\p{Z}]"""), " ") // non-printable
+            .replace(Regex("""\s+"""), " ")              // collapse whitespace
+            .trim()
     }
 
     private const val TYPE_VERSE = "verse"
