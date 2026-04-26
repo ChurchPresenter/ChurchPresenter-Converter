@@ -28,6 +28,63 @@ data class ParsedBible(
 
 object XmlToSpbConverter {
 
+    // Languages that use LXX/Septuagint Psalm numbering (Orthodox traditions)
+    private val LXX_PSALM_LANGUAGES = setOf(
+        "RUS", "UKR", "BEL",           // East Slavic
+        "SRP", "BUL", "MKD",           // South Slavic
+        "RON", "RUM", "MOL",           // Romanian
+        "KAT", "GEO",                  // Georgian
+        "GRE", "GRC", "ELL",           // Greek
+        "AMH", "ETH",                  // Ethiopian
+        "COP",                         // Coptic
+        "SYR", "ARC"                   // Syriac/Aramaic
+    )
+
+    /**
+     * Maps LXX Psalm chapter number to Hebrew Psalm chapter number.
+     * Used for the BXXXCXXXVXXX code so cross-referencing with Hebrew-numbered Bibles works.
+     */
+    private fun lxxToHebrewPsalm(lxxChapter: Int): Int = when {
+        lxxChapter <= 8 -> lxxChapter                   // Psalms 1-8: same
+        lxxChapter == 9 -> 9                             // LXX 9 = Hebrew 9+10 (merged)
+        lxxChapter in 10..112 -> lxxChapter + 1          // LXX 10-112 = Hebrew 11-113
+        lxxChapter == 113 -> 114                         // LXX 113 = Hebrew 114+115 (merged)
+        lxxChapter == 114 -> 116                         // LXX 114 = Hebrew 116:1-9
+        lxxChapter == 115 -> 116                         // LXX 115 = Hebrew 116:10-19
+        lxxChapter in 116..145 -> lxxChapter + 1         // LXX 116-145 = Hebrew 117-146
+        lxxChapter == 146 -> 147                         // LXX 146 = Hebrew 147:1-11
+        lxxChapter == 147 -> 147                         // LXX 147 = Hebrew 147:12-20
+        lxxChapter >= 148 -> lxxChapter                  // Psalms 148-150(151): same
+        else -> lxxChapter
+    }
+
+    /**
+     * Detects if a psalm verse text is a standalone superscription (title only, no content).
+     * Examples: "Начальнику хора. На струнных. Псалом Давида."
+     *           "Псалом Давида, когда он бежал от Авессалома"
+     * Counter-example: "«Псалом Давида.» Блажен муж, который не ходит..." (embedded title + content)
+     */
+    private fun isPsalmSuperscription(text: String): Boolean {
+        val trimmed = text.trim()
+        // Too long to be just a title
+        if (trimmed.length > 200) return false
+        // Remove text inside «» brackets (title markers)
+        val withoutBrackets = trimmed.replace(Regex("«[^»]*»\\.?"), "").trim()
+        // If after removing bracketed title there's substantial content, it's embedded
+        if (withoutBrackets.length > 40) return false
+        // Check for known superscription patterns
+        val titlePatterns = listOf(
+            "Псалом", "Молитва", "Начальнику", "Песнь", "Аллилуия",
+            "Давида", "Асафа", "Кореевых", "Соломона", "Моисея", "Ефама", "Емана",
+            "Psalm", "Prayer", "Song", "Maskil", "Miktam", "Shiggaion",
+            "For the director", "Of David", "Of Asaph", "Of Solomon",
+            "Псалом", "Пісня", "Молитва" // Ukrainian
+        )
+        val hasTitle = titlePatterns.any { trimmed.contains(it, ignoreCase = true) }
+        // If it contains a title pattern and has no substantial content after removal, it's a superscription
+        return hasTitle || withoutBrackets.isEmpty()
+    }
+
     fun parse(xmlFile: File): ParsedBible {
         val factory = DocumentBuilderFactory.newInstance()
         factory.isNamespaceAware = false
@@ -132,10 +189,22 @@ object XmlToSpbConverter {
 
             w.write("-----\n")
 
+            val useLxxMapping = bible.language?.uppercase() in LXX_PSALM_LANGUAGES
+            val psalmsBookNum = 19
+
             for (book in bible.books) {
                 for (chapter in book.chapters) {
+                    // For LXX Psalms, detect if verse 1 is a standalone superscription.
+                    // If so, code it as V000 and offset subsequent verse numbers by -1.
+                    val isLxxPsalm = useLxxMapping && book.number == psalmsBookNum
+                    val hasStandaloneTitle = isLxxPsalm && chapter.verses.isNotEmpty()
+                            && isPsalmSuperscription(chapter.verses.first().text)
+                    val codeChapter = if (isLxxPsalm)
+                        lxxToHebrewPsalm(chapter.number) else chapter.number
+
                     for (verse in chapter.verses) {
-                        val verseId = "B%03dC%03dV%03d".format(book.number, chapter.number, verse.number)
+                        val codeVerse = if (hasStandaloneTitle) verse.number - 1 else verse.number
+                        val verseId = "B%03dC%03dV%03d".format(book.number, codeChapter, codeVerse)
                         w.write("$verseId\t${book.number}\t${chapter.number}\t${verse.number}\t${verse.text}\n")
                     }
                 }
