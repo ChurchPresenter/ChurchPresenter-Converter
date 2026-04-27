@@ -8,7 +8,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "ChurchPresenter Converter",
-        state = rememberWindowState(width = 800.dp, height = 600.dp)
+        state = rememberWindowState(width = 1100.dp, height = 800.dp)
     ) {
         App()
     }

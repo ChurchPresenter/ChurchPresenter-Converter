@@ -1,8 +1,13 @@
 package ui
 
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -11,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import converter.DuplicateFinder
+import converter.DuplicateGroup
 import converter.SngToSongConverter
 import converter.SpsToSongConverter
 import converter.XmlToSpbConverter
@@ -27,7 +34,8 @@ fun App() {
         colorScheme = darkColorScheme()
     ) {
         var selectedTab by remember { mutableStateOf(0) }
-        val tabs = listOf("Songs", "Bibles")
+        val tabs = listOf("Songs", "Bibles", "Duplicates")
+        val tabIcons = listOf(Icons.Default.MusicNote, Icons.Default.Book, Icons.Default.ContentCopy)
 
         Scaffold { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -37,12 +45,7 @@ fun App() {
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
                             text = { Text(title) },
-                            icon = {
-                                Icon(
-                                    if (index == 0) Icons.Default.MusicNote else Icons.Default.Book,
-                                    contentDescription = title
-                                )
-                            }
+                            icon = { Icon(tabIcons[index], contentDescription = title) }
                         )
                     }
                 }
@@ -50,6 +53,7 @@ fun App() {
                 when (selectedTab) {
                     0 -> SongsTab()
                     1 -> BibleConverterTab()
+                    2 -> DuplicateFinderTab()
                 }
             }
         }
@@ -535,6 +539,460 @@ fun BibleConverterTab() {
                 }
             }
             else -> {}
+        }
+    }
+}
+
+// =============================================================================
+// Duplicate Finder Tab
+// =============================================================================
+
+enum class ScanState { IDLE, SCANNING, DONE }
+
+@Composable
+fun DuplicateFinderTab() {
+    var directory by remember { mutableStateOf<File?>(null) }
+    var scanState by remember { mutableStateOf(ScanState.IDLE) }
+    var duplicateGroups by remember { mutableStateOf<List<DuplicateGroup>>(emptyList()) }
+    var totalScanned by remember { mutableStateOf(0) }
+    var expandedGroups by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var songFolders by remember { mutableStateOf<List<File>>(emptyList()) }
+    var keepFolder by remember { mutableStateOf<File?>(null) }
+    var keepDropdownExpanded by remember { mutableStateOf(false) }
+    var filesToDelete by remember { mutableStateOf<List<File>>(emptyList()) }
+    var deleteLog by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var matchByNumber by remember { mutableStateOf(false) }
+    var matchByTitle by remember { mutableStateOf(false) }
+    var threshold by remember { mutableStateOf(0.9f) }
+    var filterMinSimilarity by remember { mutableStateOf(0f) }
+    var filterMinFiles by remember { mutableStateOf(2) }
+    var filterMaxFiles by remember { mutableStateOf(10) }
+    var filterCategories by remember { mutableStateOf(setOf("Same song number", "Same title", "Similar lyrics")) }
+    val scope = rememberCoroutineScope()
+
+    val filteredGroups by remember(duplicateGroups, filterCategories, filterMinFiles, filterMaxFiles, filterMinSimilarity) {
+        derivedStateOf {
+            duplicateGroups.filter { group ->
+                group.reason in filterCategories &&
+                group.songs.size >= filterMinFiles &&
+                group.songs.size <= filterMaxFiles &&
+                (group.similarities.isEmpty() || run {
+                    val avgSim = if (group.similarities.size > 1)
+                        group.similarities.drop(1).average() else 1.0
+                    avgSim >= filterMinSimilarity
+                })
+            }
+        }
+    }
+
+    // Recompute files to delete based on filtered groups
+    LaunchedEffect(keepFolder, filteredGroups) {
+        filesToDelete = if (keepFolder != null && filteredGroups.isNotEmpty()) {
+            DuplicateFinder.resolveDeletes(filteredGroups, keepFolder!!)
+        } else emptyList()
+    }
+
+    Row(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Left panel — controls
+        val leftScrollState = rememberScrollState()
+        Column(
+            modifier = Modifier.width(360.dp).fillMaxHeight().verticalScroll(leftScrollState),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Duplicate Song Finder", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Scans in 3 passes: song number, title, lyrics similarity. " +
+                "Run multiple times after deleting to catch more.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            HorizontalDivider()
+
+            // Folder picker
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    val dir = pickDirectory()
+                    if (dir != null) {
+                        directory = dir; scanState = ScanState.IDLE; duplicateGroups = emptyList()
+                        expandedGroups = emptySet(); keepFolder = null; deleteLog = emptyList()
+                        songFolders = emptyList()
+                    }
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Text("Select Folder")
+                }
+            }
+            if (directory != null) {
+                Text(directory!!.absolutePath, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            // Match options
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Checkbox(checked = matchByNumber, onCheckedChange = { matchByNumber = it },
+                    enabled = scanState != ScanState.SCANNING)
+                Text("Match by song number (also checks lyrics similarity)", style = MaterialTheme.typography.bodySmall)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Checkbox(checked = matchByTitle, onCheckedChange = { matchByTitle = it },
+                    enabled = scanState != ScanState.SCANNING)
+                Text("Match by title", style = MaterialTheme.typography.bodySmall)
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Threshold:", style = MaterialTheme.typography.bodySmall)
+                Slider(
+                    value = threshold,
+                    onValueChange = { threshold = it },
+                    valueRange = 0.3f..1.0f,
+                    steps = 13,
+                    modifier = Modifier.weight(1f),
+                    enabled = scanState != ScanState.SCANNING
+                )
+                Text("${(threshold * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+            }
+
+            // Scan button
+            when (scanState) {
+                ScanState.IDLE -> {
+                    Button(onClick = {
+                        scanState = ScanState.SCANNING
+                        val useNumber = matchByNumber
+                        val useTitle = matchByTitle
+                        val useThreshold = threshold.toDouble()
+                        scope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                val songs = DuplicateFinder.scanSongs(directory!!)
+                                val groups = DuplicateFinder.findDuplicates(directory!!, threshold = useThreshold, matchByNumber = useNumber, matchByTitle = useTitle)
+                                val folders = songs.map { it.file.parentFile }.distinct().sortedBy { it.absolutePath }
+                                Triple(songs.size, groups, folders)
+                            }
+                            totalScanned = result.first
+                            duplicateGroups = result.second
+                            songFolders = result.third
+                            scanState = ScanState.DONE
+                        }
+                    }, enabled = directory != null, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Search, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                        Text("Scan for Duplicates")
+                    }
+                }
+                ScanState.SCANNING -> {
+                    Button(enabled = false, onClick = {}, modifier = Modifier.fillMaxWidth()) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp)); Text("Scanning...")
+                    }
+                }
+                ScanState.DONE -> {
+                    OutlinedButton(onClick = {
+                        scanState = ScanState.IDLE; duplicateGroups = emptyList(); expandedGroups = emptySet()
+                        keepFolder = null; deleteLog = emptyList(); songFolders = emptyList()
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Scan Again") }
+                }
+            }
+
+            if (scanState == ScanState.DONE) {
+                HorizontalDivider()
+
+                val dupeCount = duplicateGroups.sumOf { it.songs.size }
+                if (duplicateGroups.isEmpty()) {
+                    Text("No duplicates found among $totalScanned song(s)",
+                        style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                } else {
+                    Text("${duplicateGroups.size} group(s) ($dupeCount songs) / $totalScanned scanned",
+                        style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
+
+                    // Keep folder
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box {
+                            OutlinedButton(onClick = { keepDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Default.Shield, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                                Text(if (keepFolder != null) keepFolder!!.name else "Keep Folder")
+                                Spacer(Modifier.width(4.dp))
+                                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(18.dp))
+                            }
+                            DropdownMenu(expanded = keepDropdownExpanded, onDismissRequest = { keepDropdownExpanded = false }) {
+                                songFolders.forEach { folder ->
+                                    val relativePath = directory?.let {
+                                        folder.toRelativeString(it).ifEmpty { "." }
+                                    } ?: folder.name
+                                    DropdownMenuItem(
+                                        text = { Text(relativePath) },
+                                        onClick = { keepFolder = folder; deleteLog = emptyList(); keepDropdownExpanded = false },
+                                        leadingIcon = {
+                                            Icon(if (folder == keepFolder) Icons.Default.CheckCircle else Icons.Default.Folder,
+                                                null, Modifier.size(18.dp))
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (keepFolder != null && filesToDelete.isNotEmpty() && deleteLog.isEmpty()) {
+                        Button(
+                            onClick = { showDeleteConfirm = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Delete, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                            Text("Delete ${filesToDelete.size} duplicate(s)")
+                        }
+                    }
+                    if (keepFolder != null && filesToDelete.isEmpty() && deleteLog.isEmpty()) {
+                        Text("No duplicates to delete for this filter/folder combo",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    if (deleteLog.isNotEmpty()) {
+                        val deleted = deleteLog.count { it.startsWith("Deleted") }
+                        val errors = deleteLog.count { it.startsWith("ERROR") }
+                        Text("Done: $deleted deleted, $errors failed",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                // Filters
+                HorizontalDivider()
+                Text("Filters", style = MaterialTheme.typography.labelMedium)
+
+                val allCategories = listOf("Same song number", "Same title", "Similar lyrics")
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    allCategories.forEach { cat ->
+                        FilterChip(
+                            selected = cat in filterCategories,
+                            onClick = {
+                                filterCategories = if (cat in filterCategories)
+                                    filterCategories - cat else filterCategories + cat
+                            },
+                            label = { Text(cat, style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Min sim:", style = MaterialTheme.typography.bodySmall)
+                    Slider(
+                        value = filterMinSimilarity,
+                        onValueChange = { filterMinSimilarity = it },
+                        valueRange = 0f..1f, steps = 19,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text("${(filterMinSimilarity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Files/group:", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = filterMinFiles.toString(),
+                        onValueChange = { v -> v.filter { it.isDigit() }.toIntOrNull()?.let { if (it >= 2) filterMinFiles = it } },
+                        modifier = Modifier.width(55.dp), textStyle = MaterialTheme.typography.bodySmall, singleLine = true
+                    )
+                    Text("-", style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = filterMaxFiles.toString(),
+                        onValueChange = { v -> v.filter { it.isDigit() }.toIntOrNull()?.let { if (it >= 2) filterMaxFiles = it } },
+                        modifier = Modifier.width(55.dp), textStyle = MaterialTheme.typography.bodySmall, singleLine = true
+                    )
+                }
+
+                if (filterMinSimilarity > 0f || filterMinFiles > 2 || filterMaxFiles < 10 || filterCategories.size < 3) {
+                    TextButton(onClick = {
+                        filterMinSimilarity = 0f; filterMinFiles = 2; filterMaxFiles = 10
+                        filterCategories = setOf("Same song number", "Same title", "Similar lyrics")
+                    }) {
+                        Icon(Icons.Default.Clear, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp))
+                        Text("Clear filters")
+                    }
+                }
+            }
+        }
+
+        // Confirmation dialog
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                title = { Text("Delete duplicates?") },
+                text = {
+                    Column {
+                        Text("This will permanently delete ${filesToDelete.size} file(s) that are duplicates of songs in:")
+                        Spacer(Modifier.height(4.dp))
+                        Text(keepFolder!!.absolutePath,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Files to delete:", style = MaterialTheme.typography.titleSmall)
+                        Spacer(Modifier.height(4.dp))
+                        filesToDelete.take(10).forEach { f ->
+                            Text(f.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
+                        if (filesToDelete.size > 10) {
+                            Text("... and ${filesToDelete.size - 10} more",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        showDeleteConfirm = false
+                        scope.launch {
+                            deleteLog = withContext(Dispatchers.IO) {
+                                filesToDelete.map { file ->
+                                    try { file.delete(); "Deleted: ${file.absolutePath}" }
+                                    catch (e: Exception) { "ERROR: ${file.name} - ${e.message}" }
+                                }
+                            }
+                        }
+                    }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
+                },
+                dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+            )
+        }
+
+        // Right panel — results
+        Surface(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            if (scanState != ScanState.DONE) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Results will appear here", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                Column {
+                    Text(
+                        "Showing ${filteredGroups.size} of ${duplicateGroups.size} group(s)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(8.dp)
+                    )
+
+                    val listState = rememberLazyListState()
+                    Box(modifier = Modifier.weight(1f)) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize().padding(start = 8.dp, top = 0.dp, bottom = 8.dp, end = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (deleteLog.isNotEmpty()) {
+                                items(deleteLog.size, key = { "log_$it" }) { idx -> LogLine(deleteLog[idx]) }
+                            }
+
+                            filteredGroups.forEachIndexed { groupIdx, group ->
+                                item(key = "header_$groupIdx") {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                        onClick = {
+                                            expandedGroups = if (groupIdx in expandedGroups)
+                                                expandedGroups - groupIdx else expandedGroups + groupIdx
+                                        }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                if (groupIdx in expandedGroups) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                null, Modifier.size(20.dp)
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    "Group ${groupIdx + 1}: ${group.songs.first().title}",
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                                val avgSim = if (group.similarities.size > 1)
+                                                    group.similarities.drop(1).average() else 1.0
+                                                Text(
+                                                    "${group.songs.size} files \u2022 ${group.reason} \u2022 ${(avgSim * 100).toInt()}% avg similarity",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (groupIdx in expandedGroups) {
+                                    items(group.songs.size, key = { "song_${groupIdx}_$it" }) { songIdx ->
+                                        val song = group.songs[songIdx]
+                                        val isKept = keepFolder != null &&
+                                                song.file.canonicalPath.startsWith(keepFolder!!.canonicalPath)
+                                        val willBeDeleted = song.file in filesToDelete
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth().padding(start = 28.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = when {
+                                                    isKept -> MaterialTheme.colorScheme.primaryContainer
+                                                    willBeDeleted -> MaterialTheme.colorScheme.errorContainer
+                                                    else -> MaterialTheme.colorScheme.surface
+                                                }
+                                            )
+                                        ) {
+                                            Column(modifier = Modifier.padding(10.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        if (isKept) Icons.Default.Shield
+                                                        else if (willBeDeleted) Icons.Default.Delete
+                                                        else Icons.Default.InsertDriveFile,
+                                                        null, Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Text(song.file.name, style = MaterialTheme.typography.bodyMedium)
+                                                    if (isKept) {
+                                                        Spacer(Modifier.width(6.dp))
+                                                        Text("KEEP", style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                    if (willBeDeleted) {
+                                                        Spacer(Modifier.width(6.dp))
+                                                        Text("DELETE", style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.error)
+                                                    }
+                                                }
+                                                val simPercent = if (group.similarities.size > songIdx)
+                                                    "${(group.similarities[songIdx] * 100).toInt()}%" else ""
+                                                Text(
+                                                    "Title: ${song.title}" + if (simPercent.isNotEmpty()) " \u2022 $simPercent similarity" else "",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(start = 22.dp, top = 2.dp)
+                                                )
+                                                Text(
+                                                    song.file.absolutePath,
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.padding(start = 22.dp, top = 2.dp)
+                                                )
+                                                if (song.lyricsText.isNotBlank()) {
+                                                    val preview = song.lyricsText.lines().take(3).joinToString(" / ")
+                                                    Text(
+                                                        preview,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.padding(start = 22.dp, top = 4.dp),
+                                                        maxLines = 2
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        VerticalScrollbar(
+                            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                            adapter = rememberScrollbarAdapter(listState)
+                        )
+                    }
+                }
+            }
         }
     }
 }
