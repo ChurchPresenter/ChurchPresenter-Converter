@@ -273,7 +273,7 @@ object DuplicateFinder {
         return map
     }
 
-    private fun readFileWithFallback(file: File): String {
+    internal fun readFileWithFallback(file: File): String {
         return try {
             val bytes = file.readBytes()
             val content = if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {

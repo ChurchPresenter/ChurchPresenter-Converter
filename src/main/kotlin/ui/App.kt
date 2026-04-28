@@ -34,8 +34,8 @@ fun App() {
         colorScheme = darkColorScheme()
     ) {
         var selectedTab by remember { mutableStateOf(0) }
-        val tabs = listOf("Songs", "Bibles", "Duplicates")
-        val tabIcons = listOf(Icons.Default.MusicNote, Icons.Default.Book, Icons.Default.ContentCopy)
+        val tabs = listOf("Songs", "Bibles", "Duplicates", "Rename")
+        val tabIcons = listOf(Icons.Default.MusicNote, Icons.Default.Book, Icons.Default.ContentCopy, Icons.Default.DriveFileRenameOutline)
 
         Scaffold { padding ->
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -54,6 +54,7 @@ fun App() {
                     0 -> SongsTab()
                     1 -> BibleConverterTab()
                     2 -> DuplicateFinderTab()
+                    3 -> BulkRenameTab()
                 }
             }
         }
@@ -995,6 +996,241 @@ fun DuplicateFinderTab() {
             }
         }
     }
+}
+
+// =============================================================================
+// Bulk Rename Tab
+// =============================================================================
+
+data class RenameEntry(val file: File, val newName: String, val conflict: Boolean)
+
+@Composable
+fun BulkRenameTab() {
+    var directory by remember { mutableStateOf<File?>(null) }
+    var stripNumbers by remember { mutableStateOf(true) }
+    var renameToFirstVerse by remember { mutableStateOf(false) }
+    var preview by remember { mutableStateOf<List<RenameEntry>>(emptyList()) }
+    var logMessages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var state by remember { mutableStateOf(ConvertState.SELECT) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Bulk Rename", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Rename .song files by stripping leading numbers and/or using the first verse line",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                val dir = pickDirectory()
+                if (dir != null) {
+                    directory = dir; state = ConvertState.SELECT; preview = emptyList(); logMessages = emptyList()
+                }
+            }) {
+                Icon(Icons.Default.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                Text("Select Folder")
+            }
+            if (directory != null) {
+                Text(directory!!.absolutePath, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Checkbox(checked = stripNumbers, onCheckedChange = { stripNumbers = it },
+                enabled = state != ConvertState.CONVERTING)
+            Text("Strip leading numbers (e.g. \"0111 - Title\" → \"Title\")", style = MaterialTheme.typography.bodySmall)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Checkbox(checked = renameToFirstVerse, onCheckedChange = { renameToFirstVerse = it },
+                enabled = state != ConvertState.CONVERTING)
+            Text("Rename to first line of verse 1", style = MaterialTheme.typography.bodySmall)
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            when (state) {
+                ConvertState.SELECT -> {
+                    OutlinedButton(onClick = {
+                        preview = buildRenamePreview(directory!!, stripNumbers, renameToFirstVerse)
+                        state = ConvertState.PREVIEW
+                    }, enabled = directory != null) {
+                        Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Preview")
+                    }
+                }
+                ConvertState.PREVIEW -> {
+                    val renameCount = preview.count { it.file.name != it.newName }
+                    Button(onClick = {
+                        state = ConvertState.CONVERTING
+                        scope.launch {
+                            logMessages = withContext(Dispatchers.IO) {
+                                preview.filter { it.file.name != it.newName }.map { entry ->
+                                    try {
+                                        val target = File(entry.file.parentFile, entry.newName)
+                                        if (target.exists()) {
+                                            "SKIP: ${entry.file.name} → ${entry.newName} (target exists)"
+                                        } else {
+                                            entry.file.renameTo(target)
+                                            "OK: ${entry.file.name} → ${entry.newName}"
+                                        }
+                                    } catch (e: Exception) { "ERROR: ${entry.file.name} - ${e.message}" }
+                                }
+                            }
+                            state = ConvertState.DONE
+                        }
+                    }, enabled = renameCount > 0) {
+                        Icon(Icons.Default.DriveFileRenameOutline, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                        Text("Rename $renameCount file(s)")
+                    }
+                    OutlinedButton(onClick = { state = ConvertState.SELECT; preview = emptyList() }) { Text("Back") }
+                }
+                ConvertState.CONVERTING -> {
+                    Button(enabled = false, onClick = {}) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp)); Text("Renaming...")
+                    }
+                }
+                ConvertState.DONE -> {
+                    OutlinedButton(onClick = {
+                        state = ConvertState.SELECT; preview = emptyList(); logMessages = emptyList()
+                    }) { Text("Start Over") }
+                }
+            }
+        }
+
+        when (state) {
+            ConvertState.PREVIEW -> {
+                val renameCount = preview.count { it.file.name != it.newName }
+                val conflicts = preview.count { it.conflict }
+                Text("$renameCount to rename, ${preview.size - renameCount} unchanged" +
+                    if (conflicts > 0) ", $conflicts conflicts (will be skipped)" else "",
+                    style = MaterialTheme.typography.titleSmall)
+                Surface(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    LazyColumn(modifier = Modifier.padding(8.dp)) {
+                        items(preview.filter { it.file.name != it.newName }) { entry ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (entry.conflict) MaterialTheme.colorScheme.errorContainer
+                                    else MaterialTheme.colorScheme.surfaceContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(entry.file.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                                    Icon(Icons.Default.ArrowForward, null, Modifier.size(14.dp).padding(horizontal = 4.dp),
+                                        tint = MaterialTheme.colorScheme.primary)
+                                    Text(entry.newName, style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                                    if (entry.conflict) {
+                                        Text("conflict", style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ConvertState.DONE -> {
+                val ok = logMessages.count { it.startsWith("OK") }
+                val skipped = logMessages.count { it.startsWith("SKIP") }
+                val err = logMessages.count { it.startsWith("ERROR") }
+                Text("Done: $ok renamed, $skipped skipped, $err failed", style = MaterialTheme.typography.titleSmall,
+                    color = if (err > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                Surface(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    LazyColumn(modifier = Modifier.padding(8.dp)) {
+                        items(logMessages) { msg -> LogLine(msg) }
+                    }
+                }
+            }
+            else -> {}
+        }
+    }
+}
+
+private val leadingNumberRegex = Regex("""^\d+\s*-\s*""")
+private val verseHeaderRegex = Regex("""^\[.+\d.*\]$""", RegexOption.IGNORE_CASE)
+private val invalidFilenameChars = Regex("""[\\/:*?"<>|]""")
+
+private fun buildRenamePreview(directory: File, stripNumbers: Boolean, renameToFirstVerse: Boolean): List<RenameEntry> {
+    val files = directory.listFiles { f -> f.isFile && f.extension.equals("song", ignoreCase = true) }
+        ?.sortedBy { it.name } ?: return emptyList()
+
+    val usedNames = mutableSetOf<String>()
+    // Track existing filenames that won't be renamed
+    files.forEach { usedNames.add(it.name.lowercase()) }
+
+    return files.map { file ->
+        var newBase = file.nameWithoutExtension
+
+        if (stripNumbers) {
+            newBase = leadingNumberRegex.replace(newBase, "")
+        }
+        if (renameToFirstVerse) {
+            val firstLine = extractFirstVerseLine(file)
+            if (firstLine != null) {
+                newBase = sanitizeFilename(firstLine)
+            }
+        }
+
+        val newName = "$newBase.song"
+        val conflict = newName != file.name && (File(file.parentFile, newName).exists() ||
+            newName.lowercase() in usedNames && newName.lowercase() != file.name.lowercase())
+        usedNames.add(newName.lowercase())
+        RenameEntry(file, newName, conflict)
+    }
+}
+
+private fun extractFirstVerseLine(file: File): String? {
+    val content = DuplicateFinder.readFileWithFallback(file)
+    val lines = content.lines()
+    var frontmatterDone = false
+    var inFrontmatter = false
+    var foundPrimary = false
+    var foundVerse = false
+
+    for (line in lines) {
+        val trimmed = line.trim()
+        if (!frontmatterDone) {
+            if (trimmed == "---") {
+                inFrontmatter = !inFrontmatter
+                if (!inFrontmatter) frontmatterDone = true
+            }
+            continue
+        }
+        if (trimmed.equals("[Primary]", ignoreCase = true)) { foundPrimary = true; continue }
+        if (trimmed.equals("[Secondary]", ignoreCase = true)) break
+        if (foundPrimary && trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            if (verseHeaderRegex.matches(trimmed)) { foundVerse = true; continue }
+            if (foundVerse) break // hit next non-verse section after finding a verse
+            continue
+        }
+        if (foundVerse && trimmed.isNotEmpty()) {
+            return trimmed
+        }
+    }
+    return null
+}
+
+private fun sanitizeFilename(text: String): String {
+    return invalidFilenameChars.replace(text, "").trim().take(100)
 }
 
 // =============================================================================
