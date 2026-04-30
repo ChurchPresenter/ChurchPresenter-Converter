@@ -6,7 +6,11 @@ import java.nio.charset.Charset
 data class SongInfo(
     val file: File,
     val title: String,
-    val lyricsText: String
+    val lyricsText: String,
+    /** Section headers found in [Primary], e.g. ["Verse 1", "Chorus", "Verse 2"] */
+    val sections: List<String> = emptyList(),
+    /** Verse/section name → lyrics text */
+    val verses: Map<String, String> = emptyMap()
 )
 
 data class DuplicateGroup(
@@ -25,12 +29,10 @@ object DuplicateFinder {
         val groups = mutableListOf<DuplicateGroup>()
         val assigned = mutableSetOf<Int>()
 
-        // Pre-compute normalized lyrics and bigrams for all songs (used by multiple passes)
-        val allNormalized = songs.map { normalize(it.lyricsText) }
-        val allBigrams = allNormalized.map { bigrams(it) }
+        // Pre-compute normalized line sets for all songs (once)
+        val allLines = songs.map { normalizeLines(it) }
 
         // Pass 1 (optional): same song number across different parent folders
-        // Only groups songs if their lyrics similarity also meets the threshold
         if (matchByNumber) {
             val byNumberOnly = songs.withIndex()
                 .filter { extractSongNumber(it.value.file.name) != null }
@@ -39,20 +41,11 @@ object DuplicateFinder {
                 val distinctFolders = entries.map { it.value.file.parentFile.canonicalPath }.distinct()
                 if (entries.size > 1 && distinctFolders.size > 1) {
                     val firstIdx = entries.first().index
-                    // Filter to only entries whose lyrics are similar enough to the first
                     val similar = entries.filter { e ->
-                        e.index == firstIdx || similarityFromBigrams(
-                            allNormalized[firstIdx], allBigrams[firstIdx],
-                            allNormalized[e.index], allBigrams[e.index]
-                        ) >= threshold
+                        e.index == firstIdx || lineSimilarity(allLines[firstIdx], allLines[e.index]) >= threshold
                     }
                     if (similar.size > 1) {
-                        val sims = similar.map { e ->
-                            similarityFromBigrams(
-                                allNormalized[firstIdx], allBigrams[firstIdx],
-                                allNormalized[e.index], allBigrams[e.index]
-                            )
-                        }
+                        val sims = similar.map { e -> lineSimilarity(allLines[firstIdx], allLines[e.index]) }
                         groups.add(DuplicateGroup(similar.map { it.value }, "Same song number", sims))
                         similar.forEach { assigned.add(it.index) }
                     }
@@ -60,51 +53,111 @@ object DuplicateFinder {
             }
         }
 
-        // Pass 2 (optional): exact title matches (normalized) for remaining songs
-        val remainingAfterNumbers = songs.withIndex().filter { it.index !in assigned }
-        val byTitle = if (matchByTitle) remainingAfterNumbers.groupBy { normalize(it.value.title) } else emptyMap()
-        for ((_, entries) in byTitle) {
-            if (entries.size > 1) {
-                val firstIdx = entries.first().index
-                val sims = entries.map { e ->
-                    similarityFromBigrams(
-                        allNormalized[firstIdx], allBigrams[firstIdx],
-                        allNormalized[e.index], allBigrams[e.index]
-                    )
+        // Pass 2 (optional): exact title matches (by file content title AND by filename after stripping numbers)
+        if (matchByTitle) {
+            val remainingAfterNumbers = songs.withIndex().filter { it.index !in assigned }
+            // Group by normalized content title OR by normalized filename (after stripping leading numbers)
+            val titleGroups = mutableMapOf<String, MutableList<IndexedValue<SongInfo>>>()
+            for (entry in remainingAfterNumbers) {
+                val contentTitle = normalizeText(entry.value.title)
+                val fileTitle = normalizeText(stripLeadingNumber(entry.value.file.nameWithoutExtension))
+                titleGroups.getOrPut(contentTitle) { mutableListOf() }.add(entry)
+                if (fileTitle != contentTitle) {
+                    titleGroups.getOrPut(fileTitle) { mutableListOf() }.add(entry)
                 }
-                groups.add(DuplicateGroup(entries.map { it.value }, "Same title", sims))
-                entries.forEach { assigned.add(it.index) }
+            }
+            for ((_, entries) in titleGroups) {
+                // Deduplicate entries (a song may appear via both content title and filename)
+                val unique = entries.distinctBy { it.index }.filter { it.index !in assigned }
+                if (unique.size > 1) {
+                    val firstIdx = unique.first().index
+                    // Only include songs whose content is actually similar to the first
+                    val similar = unique.filter { e ->
+                        e.index == firstIdx || lineSimilarity(allLines[firstIdx], allLines[e.index]) >= threshold * 0.5
+                    }
+                    if (similar.size > 1) {
+                        val sims = similar.map { e -> lineSimilarity(allLines[firstIdx], allLines[e.index]) }
+                        groups.add(DuplicateGroup(similar.map { it.value }, "Same title", sims))
+                        similar.forEach { assigned.add(it.index) }
+                    }
+                }
             }
         }
 
-        // Pass 3: content similarity for remaining songs
+        // Pass 3: line similarity via inverted index (fast candidate finding)
         val remaining = songs.withIndex().filter { it.index !in assigned }
-        // Map from remaining list index to original song index
-        val remNorm = remaining.map { allNormalized[it.index] }
-        val remBigrams = remaining.map { allBigrams[it.index] }
-
-        for (i in remaining.indices) {
-            if (remaining[i].index in assigned) continue
-            val groupIndices = mutableListOf(i)
-            val groupSims = mutableListOf(1.0)
-            for (j in i + 1 until remaining.size) {
-                if (remaining[j].index in assigned) continue
-                // Require similarity to ALL existing members of the group
-                val sims = groupIndices.map { gi ->
-                    similarityFromBigrams(remNorm[gi], remBigrams[gi], remNorm[j], remBigrams[j])
-                }
-                val minSim = sims.min()
-                if (minSim >= threshold) {
-                    groupIndices.add(j)
-                    // Store similarity to the first song (for display)
-                    groupSims.add(sims.first())
-                    assigned.add(remaining[j].index)
+        if (remaining.size >= 2) {
+            // Build inverted index: normalized line → set of indices into 'remaining'
+            val invertedIndex = mutableMapOf<String, MutableSet<Int>>()
+            for ((ri, indexed) in remaining.withIndex()) {
+                for (line in allLines[indexed.index]) {
+                    invertedIndex.getOrPut(line) { mutableSetOf() }.add(ri)
                 }
             }
-            if (groupIndices.size > 1) {
-                assigned.add(remaining[i].index)
-                val groupSongs = groupIndices.map { remaining[it] }
-                groups.add(DuplicateGroup(groupSongs.map { it.value }, "Similar lyrics", groupSims))
+
+            // Find candidate pairs: songs sharing >= 2 lines
+            val candidatePairs = mutableMapOf<Long, Int>() // packed pair key → shared line count
+            for ((_, songIndices) in invertedIndex) {
+                if (songIndices.size < 2 || songIndices.size > 50) continue // skip very common lines
+                val list = songIndices.toList()
+                for (a in list.indices) {
+                    for (b in a + 1 until list.size) {
+                        val key = packPair(list[a], list[b])
+                        candidatePairs[key] = (candidatePairs[key] ?: 0) + 1
+                    }
+                }
+            }
+
+            // Score candidates that share >= 2 lines
+            val scoredPairs = mutableMapOf<Long, Double>() // pair key → similarity
+            for ((key, sharedCount) in candidatePairs) {
+                if (sharedCount < 2) continue
+                val (ri, rj) = unpackPair(key)
+                val si = remaining[ri].index
+                val sj = remaining[rj].index
+                if (si in assigned || sj in assigned) continue
+                val sim = lineSimilarity(allLines[si], allLines[sj])
+                if (sim >= threshold) {
+                    scoredPairs[key] = sim
+                }
+            }
+
+            // Group scored pairs
+            for ((key, sim) in scoredPairs.entries.sortedByDescending { it.value }) {
+                val (ri, rj) = unpackPair(key)
+                val si = remaining[ri].index
+                val sj = remaining[rj].index
+                if (si in assigned && sj in assigned) continue
+
+                // Find or create group
+                val existingGroup = groups.indexOfFirst { g ->
+                    g.reason == "Similar lyrics" && g.songs.any { it === songs[si] || it === songs[sj] }
+                }
+                if (existingGroup >= 0) {
+                    val g = groups[existingGroup]
+                    val newSongs = mutableListOf<SongInfo>()
+                    val newSims = mutableListOf<Double>()
+                    newSongs.addAll(g.songs)
+                    newSims.addAll(g.similarities)
+                    if (si !in assigned) {
+                        newSongs.add(songs[si]); newSims.add(sim); assigned.add(si)
+                    }
+                    if (sj !in assigned) {
+                        newSongs.add(songs[sj]); newSims.add(sim); assigned.add(sj)
+                    }
+                    groups[existingGroup] = DuplicateGroup(newSongs, "Similar lyrics", newSims)
+                } else if (si !in assigned || sj !in assigned) {
+                    val firstIdx = if (si !in assigned) si else sj
+                    val secondIdx = if (si !in assigned) sj else si
+                    val firstSim = lineSimilarity(allLines[firstIdx], allLines[firstIdx])
+                    groups.add(DuplicateGroup(
+                        listOf(songs[firstIdx], songs[secondIdx]),
+                        "Similar lyrics",
+                        listOf(firstSim, sim)
+                    ))
+                    assigned.add(si)
+                    assigned.add(sj)
+                }
             }
         }
 
@@ -136,7 +189,6 @@ object DuplicateFinder {
             if (kept.isEmpty()) {
                 emptyList()
             } else {
-                // Delete songs outside the keep folder, plus all but the first inside the keep folder
                 val outsiders = group.songs.filter { !it.file.canonicalPath.startsWith(keepPath) }.map { it.file }
                 val extraInsiders = kept.drop(1).map { it.file }
                 outsiders + extraInsiders
@@ -144,10 +196,69 @@ object DuplicateFinder {
         }
     }
 
+    // =========================================================================
+    // Line-level similarity
+    // =========================================================================
+
+    /** Extract unique normalized lyric lines from a song (no structural markers). */
+    private fun normalizeLines(song: SongInfo): Set<String> {
+        return song.lyricsText.lines()
+            .map { normalizeText(it) }
+            .filter { it.length >= 3 } // skip very short lines
+            .toSet()
+    }
+
+    /**
+     * Line-level similarity between two songs.
+     * Score = matched lines (exact + fuzzy) / lines in shorter song.
+     * Handles missing verses and spelling errors.
+     */
+    private fun lineSimilarity(linesA: Set<String>, linesB: Set<String>): Double {
+        if (linesA.isEmpty() && linesB.isEmpty()) return 1.0
+        if (linesA.isEmpty() || linesB.isEmpty()) return 0.0
+
+        val shorter = if (linesA.size <= linesB.size) linesA else linesB
+        val longer = if (linesA.size <= linesB.size) linesB else linesA
+
+        // Count exact matches
+        val exactMatches = shorter.intersect(longer)
+        var matched = exactMatches.size
+
+        // Fuzzy match remaining lines (handles spelling errors)
+        if (matched < shorter.size) {
+            val unmatchedShort = shorter - exactMatches
+            val unmatchedLong = longer - exactMatches
+            if (unmatchedLong.isNotEmpty()) {
+                // Pre-compute bigrams for unmatched longer lines
+                val longBigrams = unmatchedLong.map { Triple(it, it, bigrams(it)) }
+                for (sLine in unmatchedShort) {
+                    val sBi = bigrams(sLine)
+                    var bestSim = 0.0
+                    for ((_, lNorm, lBi) in longBigrams) {
+                        val sim = diceFromBigrams(sBi, lBi)
+                        if (sim > bestSim) bestSim = sim
+                    }
+                    if (bestSim >= 0.75) matched++
+                }
+            }
+        }
+
+        return matched.toDouble() / shorter.size
+    }
+
+    // =========================================================================
+    // Parsing
+    // =========================================================================
+
     /** Extract leading number from filenames like "0407 - Title.song" */
     private fun extractSongNumber(filename: String): String? {
         val match = Regex("""^(\d+)\s*-\s""").find(filename)
         return match?.groupValues?.get(1)
+    }
+
+    /** Strip leading number prefix from filename, e.g. "0407 - Title" → "Title" */
+    private fun stripLeadingNumber(name: String): String {
+        return name.replace(Regex("""^\d+\s*-\s*"""), "")
     }
 
     private fun parseSong(file: File): SongInfo {
@@ -156,6 +267,9 @@ object DuplicateFinder {
 
         var title = ""
         val lyricsLines = mutableListOf<String>()
+        val sections = mutableListOf<String>()
+        val verses = mutableMapOf<String, MutableList<String>>()
+        var currentSection: String? = null
         var inFrontmatter = false
         var frontmatterDone = false
         var foundPrimary = false
@@ -179,19 +293,29 @@ object DuplicateFinder {
             }
             if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
                 if (trimmed.equals("[Secondary]", ignoreCase = true)) break
+                if (foundPrimary) {
+                    currentSection = trimmed.removeSurrounding("[", "]")
+                    sections.add(currentSection)
+                    verses[currentSection] = mutableListOf()
+                }
                 continue
             }
+            if (trimmed.startsWith("{") && trimmed.endsWith("}")) continue
             if (foundPrimary && trimmed.isNotEmpty() && !isStructuralMarker(trimmed)) {
                 lyricsLines.add(trimmed)
+                if (currentSection != null) {
+                    verses[currentSection]!!.add(trimmed)
+                }
             }
         }
 
         if (title.isEmpty()) title = file.nameWithoutExtension
-        return SongInfo(file, title, deduplicateBlocks(lyricsLines).joinToString("\n"))
+        val verseTexts = verses.mapValues { (_, vLines) -> vLines.joinToString("\n") }
+        return SongInfo(file, title, lyricsLines.joinToString("\n"), sections, verseTexts)
     }
 
     private val structuralMarkerRegex = Regex(
-        """^\{.*\}[.:]?$""" // curly-brace markers like {Припев:}, {Chorus}
+        """^\{.*\}[.:]?$"""
     )
     private val bareLabelRegex = Regex(
         """^(припев|куплет|хор|вступление|окончание|бридж|кода|chorus|verse|bridge|intro|outro|refrain|coda)\s*\d*\s*[.:]?\s*$""",
@@ -202,65 +326,101 @@ object DuplicateFinder {
         return structuralMarkerRegex.matches(line) || bareLabelRegex.matches(line)
     }
 
-    /** Remove repeated multi-line blocks (e.g. chorus lyrics repeated after each verse). */
-    private fun deduplicateBlocks(lines: List<String>): List<String> {
-        if (lines.size < 4) return lines
-        // Try block sizes from large to small to catch full chorus blocks first
-        val normalized = lines.map { it.lowercase().trim() }
-        val removed = BooleanArray(lines.size)
+    // =========================================================================
+    // Homoglyph detection & fixing
+    // =========================================================================
 
-        for (blockSize in (lines.size / 2) downTo 2) {
-            for (i in 0..lines.size - blockSize) {
-                if (removed[i]) continue
-                val block = normalized.subList(i, i + blockSize)
-                // Look for identical blocks later in the text
-                var j = i + blockSize
-                while (j + blockSize <= lines.size) {
-                    if (!removed[j] && normalized.subList(j, j + blockSize) == block) {
-                        for (k in j until j + blockSize) removed[k] = true
-                        j += blockSize
-                    } else {
-                        j++
-                    }
-                }
-            }
-        }
-        return lines.filterIndexed { idx, _ -> !removed[idx] }
-    }
-
-    private val structuralWordsRegex = Regex(
-        """\b(припев|куплет|хор|вступление|окончание|бридж|кода|chorus|verse|bridge|intro|outro|refrain|coda)\b""",
-        RegexOption.IGNORE_CASE
+    /** Map Latin lookalike characters to Cyrillic equivalents (lowercase, for normalization). */
+    private val homoglyphMap = mapOf(
+        'a' to 'а', 'c' to 'с', 'e' to 'е', 'o' to 'о', 'p' to 'р',
+        'x' to 'х', 'y' to 'у', 'b' to 'в', 'h' to 'н', 'k' to 'к',
+        'm' to 'м', 't' to 'т'
     )
 
-    private fun normalize(text: String): String {
-        return text.lowercase()
-            .replace(structuralWordsRegex, "")
+    /** Full-case map for fixing actual file content (both lower and upper). */
+    private val homoglyphFixMap = mapOf(
+        'a' to 'а', 'A' to 'А', 'c' to 'с', 'C' to 'С',
+        'e' to 'е', 'E' to 'Е', 'o' to 'о', 'O' to 'О',
+        'p' to 'р', 'P' to 'Р', 'x' to 'х', 'X' to 'Х',
+        'y' to 'у', 'B' to 'В', 'H' to 'Н', 'K' to 'К',
+        'M' to 'М', 'T' to 'Т'
+    )
+
+    /** Check if a line is primarily Cyrillic (more Cyrillic letters than Latin). */
+    private fun isCyrillicLine(line: String): Boolean {
+        val cyrillic = line.count { it in '\u0400'..'\u04FF' }
+        val latin = line.count { it in 'A'..'Z' || it in 'a'..'z' }
+        return cyrillic > 0 && cyrillic > latin
+    }
+
+    /** Check if a file contains mixed Latin/Cyrillic homoglyphs in Cyrillic lines. */
+    fun hasHomoglyphs(file: File): Boolean {
+        val content = readFileWithFallback(file)
+        for (line in content.lines()) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("[") || trimmed.startsWith("{") || trimmed.startsWith("---") ||
+                trimmed.startsWith("title:") || trimmed.startsWith("author:") ||
+                trimmed.startsWith("composer:") || trimmed.startsWith("tune:")) continue
+            if (isCyrillicLine(trimmed) && trimmed.any { it in homoglyphFixMap }) return true
+        }
+        return false
+    }
+
+    /** Fix homoglyphs in a file: replace Latin lookalikes with Cyrillic in lines that are
+     *  primarily Cyrillic. English lines are left untouched.
+     *  Returns the number of characters replaced, or 0 if no changes. */
+    fun fixHomoglyphs(file: File): Int {
+        val content = readFileWithFallback(file)
+        val lines = content.lines()
+        var totalFixed = 0
+        val fixedLines = lines.map { line ->
+            val trimmed = line.trim()
+            // Skip structural/metadata lines
+            if (trimmed.startsWith("[") || trimmed.startsWith("{") || trimmed.startsWith("---") ||
+                trimmed.startsWith("title:") || trimmed.startsWith("author:") ||
+                trimmed.startsWith("composer:") || trimmed.startsWith("tune:")) {
+                line
+            } else if (!isCyrillicLine(trimmed)) {
+                // Not a Cyrillic line — leave it alone
+                line
+            } else {
+                val sb = StringBuilder(line.length)
+                for (ch in line) {
+                    val replacement = homoglyphFixMap[ch]
+                    if (replacement != null) {
+                        sb.append(replacement)
+                        totalFixed++
+                    } else {
+                        sb.append(ch)
+                    }
+                }
+                sb.toString()
+            }
+        }
+        if (totalFixed > 0) {
+            file.writeText(fixedLines.joinToString("\n"), Charsets.UTF_8)
+        }
+        return totalFixed
+    }
+
+    /** Scan directory for files with homoglyphs. */
+    fun findHomoglyphFiles(directory: File): List<File> {
+        return directory.walkTopDown()
+            .filter { it.isFile && it.extension.equals("song", ignoreCase = true) }
+            .filter { hasHomoglyphs(it) }
+            .toList()
+    }
+
+    private fun normalizeText(text: String): String {
+        val lower = text.lowercase()
+        val sb = StringBuilder(lower.length)
+        for (ch in lower) {
+            sb.append(homoglyphMap[ch] ?: ch)
+        }
+        return sb.toString()
             .replace(Regex("[^\\p{L}\\p{N}\\s]"), "")
             .replace(Regex("\\s+"), " ")
             .trim()
-    }
-
-    /** Similarity using pre-computed bigrams (avoids redundant normalize + bigram calls) */
-    private fun similarityFromBigrams(
-        na: String, bigramsA: Map<String, Int>,
-        nb: String, bigramsB: Map<String, Int>
-    ): Double {
-        if (na.isEmpty() && nb.isEmpty()) return 1.0
-        if (na.isEmpty() || nb.isEmpty()) return 0.0
-        if (na == nb) return 1.0
-        if (bigramsA.isEmpty() && bigramsB.isEmpty()) return 1.0
-        if (bigramsA.isEmpty() || bigramsB.isEmpty()) return 0.0
-
-        val intersection = bigramsA.keys.sumOf { minOf(bigramsA[it] ?: 0, bigramsB[it] ?: 0) }
-        return (2.0 * intersection) / (bigramsA.values.sum() + bigramsB.values.sum())
-    }
-
-    /** Bigram-based similarity (Dice coefficient) — standalone version */
-    internal fun similarity(a: String, b: String): Double {
-        val na = normalize(a)
-        val nb = normalize(b)
-        return similarityFromBigrams(na, bigrams(na), nb, bigrams(nb))
     }
 
     private fun bigrams(text: String): Map<String, Int> {
@@ -272,6 +432,38 @@ object DuplicateFinder {
         }
         return map
     }
+
+    private fun diceFromBigrams(a: Map<String, Int>, b: Map<String, Int>): Double {
+        if (a.isEmpty() && b.isEmpty()) return 1.0
+        if (a.isEmpty() || b.isEmpty()) return 0.0
+        val intersection = a.keys.sumOf { minOf(a[it] ?: 0, b[it] ?: 0) }
+        return (2.0 * intersection) / (a.values.sum() + b.values.sum())
+    }
+
+    /** Bigram-based similarity — public for use in UI. */
+    internal fun similarity(a: String, b: String): Double {
+        val na = normalizeText(a)
+        val nb = normalizeText(b)
+        return diceFromBigrams(bigrams(na), bigrams(nb))
+    }
+
+    // =========================================================================
+    // Pair packing for inverted index
+    // =========================================================================
+
+    private fun packPair(a: Int, b: Int): Long {
+        val lo = minOf(a, b)
+        val hi = maxOf(a, b)
+        return lo.toLong() shl 32 or hi.toLong()
+    }
+
+    private fun unpackPair(key: Long): Pair<Int, Int> {
+        return Pair((key shr 32).toInt(), (key and 0xFFFFFFFFL).toInt())
+    }
+
+    // =========================================================================
+    // File I/O
+    // =========================================================================
 
     internal fun readFileWithFallback(file: File): String {
         return try {
