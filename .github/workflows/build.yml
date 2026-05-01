@@ -78,14 +78,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build MSI installer
-        run: ./gradlew packageMsi
+        shell: cmd
+        run: gradlew.bat packageMsi
 
       - name: Rename MSI (add WINDOWS-x64 label)
-        shell: bash
+        shell: pwsh
         run: |
-          for f in build/compose/binaries/main/msi/*.msi; do
-            mv "$f" "${f%.msi}-WINDOWS-x64.msi"
-          done
+          Get-ChildItem build/compose/binaries/main/msi/*.msi | ForEach-Object {
+            Rename-Item $_ ($_.BaseName + "-WINDOWS-x64.msi")
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
