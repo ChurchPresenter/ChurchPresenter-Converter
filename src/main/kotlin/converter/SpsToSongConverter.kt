@@ -176,17 +176,19 @@ object SpsToSongConverter {
 
     private fun parseSqliteLyrics(songText: String): List<String> {
         if (songText.isBlank()) return emptyList()
-        val lines = songText.split("\n").map { wrapSectionHeader(it.trimEnd('\r')) }
+        val sanitized = TextUtils.sanitizeLyricText(songText)
+        val lines = sanitized.split("\n").map { wrapSectionHeader(it.trimEnd('\r')) }
         return lines.dropLastWhile { it.isBlank() }
     }
 
     private fun parseLyrics(lyricsText: String): List<String> {
         if (lyricsText.isBlank()) return emptyList()
 
+        val sanitizedText = TextUtils.sanitizeLyricText(lyricsText)
         val lyrics = mutableListOf<String>()
         val sections = mutableListOf<LyricSection>()
 
-        val verses = lyricsText.split("@\$")
+        val verses = sanitizedText.split("@\$")
 
         // First pass: parse all sections
         for (verse in verses) {

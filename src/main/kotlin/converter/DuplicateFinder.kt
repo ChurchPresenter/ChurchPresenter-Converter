@@ -71,12 +71,21 @@ object DuplicateFinder {
                 val unique = entries.distinctBy { it.index }.filter { it.index !in assigned }
                 if (unique.size > 1) {
                     val firstIdx = unique.first().index
-                    // Only include songs whose content is actually similar to the first
+                    // Include songs whose content is similar to the first.
+                    // Use max of line-level and text-level similarity to handle
+                    // different line breaks of the same song.
                     val similar = unique.filter { e ->
-                        e.index == firstIdx || lineSimilarity(allLines[firstIdx], allLines[e.index]) >= threshold * 0.5
+                        if (e.index == firstIdx) return@filter true
+                        val lineSim = lineSimilarity(allLines[firstIdx], allLines[e.index])
+                        val textSim = textSimilarity(songs[firstIdx], songs[e.index])
+                        maxOf(lineSim, textSim) >= threshold * 0.5
                     }
                     if (similar.size > 1) {
-                        val sims = similar.map { e -> lineSimilarity(allLines[firstIdx], allLines[e.index]) }
+                        val sims = similar.map { e ->
+                            val lineSim = lineSimilarity(allLines[firstIdx], allLines[e.index])
+                            val textSim = textSimilarity(songs[firstIdx], songs[e.index])
+                            maxOf(lineSim, textSim)
+                        }
                         groups.add(DuplicateGroup(similar.map { it.value }, "Same title", sims))
                         similar.forEach { assigned.add(it.index) }
                     }
@@ -206,6 +215,15 @@ object DuplicateFinder {
             .map { normalizeText(it) }
             .filter { it.length >= 3 } // skip very short lines
             .toSet()
+    }
+
+    /** Text-level similarity (ignoring line breaks). Joins all lyrics into a single
+     *  normalized string and compares via bigram dice. Useful when the same song
+     *  is formatted with different line breaks. */
+    private fun textSimilarity(songA: SongInfo, songB: SongInfo): Double {
+        val a = normalizeText(songA.lyricsText.replace('\n', ' '))
+        val b = normalizeText(songB.lyricsText.replace('\n', ' '))
+        return diceFromBigrams(bigrams(a), bigrams(b))
     }
 
     /**

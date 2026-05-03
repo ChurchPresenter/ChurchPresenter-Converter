@@ -220,12 +220,12 @@ object SngToSongConverter {
             }
             // Verify it decoded properly
             if (content.contains('\uFFFD')) {
-                String(bytes, Charset.forName("windows-1251"))
+                TextUtils.sanitizeLyricText(String(bytes, Charset.forName("windows-1251")))
             } else {
-                content
+                TextUtils.sanitizeLyricText(content)
             }
         } catch (e: Exception) {
-            file.readText(Charset.forName("windows-1251"))
+            TextUtils.sanitizeLyricText(file.readText(Charset.forName("windows-1251")))
         }
     }
 }

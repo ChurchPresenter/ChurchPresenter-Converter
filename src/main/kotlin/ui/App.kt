@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
 import converter.DuplicateFinder
+import converter.TextUtils
 import converter.DuplicateGroup
 import converter.SngToSongConverter
 import converter.SpsToSongConverter
@@ -859,6 +860,60 @@ fun DuplicateFinderTab() {
                 if (homoglyphLog.isNotEmpty()) {
                     val fixed = homoglyphLog.count { it.startsWith("Fixed") }
                     val errors = homoglyphLog.count { it.startsWith("ERROR") }
+                    Text("Done: $fixed fixed, $errors failed",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                }
+
+                // Sanitize control characters
+                HorizontalDivider()
+                var sanitizeFiles by remember { mutableStateOf<List<File>?>(null) }
+                var sanitizeLog by remember { mutableStateOf<List<String>>(emptyList()) }
+                OutlinedButton(onClick = {
+                    scope.launch {
+                        sanitizeFiles = withContext(Dispatchers.IO) {
+                            TextUtils.findFilesWithControlChars(directory!!)
+                        }
+                    }
+                }, modifier = Modifier.fillMaxWidth(), enabled = directory != null) {
+                    Icon(Icons.Default.CleaningServices, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Text("Find control characters (null bytes, vertical tabs)")
+                }
+                if (sanitizeFiles != null && sanitizeFiles!!.isEmpty()) {
+                    Text("No control characters found",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
+                if (sanitizeFiles != null && sanitizeFiles!!.isNotEmpty() && sanitizeLog.isEmpty()) {
+                    Text("${sanitizeFiles!!.size} file(s) with null bytes or vertical tabs",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    sanitizeFiles!!.take(5).forEach { f ->
+                        Text(f.name, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 8.dp))
+                    }
+                    if (sanitizeFiles!!.size > 5) {
+                        Text("... and ${sanitizeFiles!!.size - 5} more",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Button(onClick = {
+                        scope.launch {
+                            sanitizeLog = withContext(Dispatchers.IO) {
+                                sanitizeFiles!!.map { f ->
+                                    try {
+                                        val changed = TextUtils.sanitizeFile(f)
+                                        if (changed) "Fixed: ${f.name}" else "Unchanged: ${f.name}"
+                                    } catch (e: Exception) { "ERROR: ${f.name} - ${e.message}" }
+                                }
+                            }
+                        }
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Build, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                        Text("Fix ${sanitizeFiles!!.size} file(s)")
+                    }
+                }
+                if (sanitizeLog.isNotEmpty()) {
+                    val fixed = sanitizeLog.count { it.startsWith("Fixed") }
+                    val errors = sanitizeLog.count { it.startsWith("ERROR") }
                     Text("Done: $fixed fixed, $errors failed",
                         style = MaterialTheme.typography.titleSmall,
                         color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
