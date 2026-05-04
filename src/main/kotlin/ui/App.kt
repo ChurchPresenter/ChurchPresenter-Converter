@@ -42,32 +42,28 @@ import javax.swing.filechooser.FileNameExtensionFilter
 
 @Composable
 fun App() {
-    MaterialTheme(
-        colorScheme = darkColorScheme()
-    ) {
-        var selectedTab by remember { mutableStateOf(0) }
-        val tabs = listOf("Bibles", "Songs", "Duplicates", "Rename")
-        val tabIcons = listOf(Icons.Default.Book, Icons.Default.MusicNote, Icons.Default.ContentCopy, Icons.Default.DriveFileRenameOutline)
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("Bibles", "Songs", "Duplicates", "Rename")
+    val tabIcons = listOf(Icons.Default.Book, Icons.Default.MusicNote, Icons.Default.ContentCopy, Icons.Default.DriveFileRenameOutline)
 
-        Scaffold { padding ->
-            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                TabRow(selectedTabIndex = selectedTab) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = { Text(title) },
-                            icon = { Icon(tabIcons[index], contentDescription = title) }
-                        )
-                    }
+    Scaffold { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            TabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) },
+                        icon = { Icon(tabIcons[index], contentDescription = title) }
+                    )
                 }
+            }
 
-                when (selectedTab) {
-                    0 -> BibleConverterTab()
-                    1 -> SongsTab()
-                    2 -> DuplicateFinderTab()
-                    3 -> BulkRenameTab()
-                }
+            when (selectedTab) {
+                0 -> BibleConverterTab()
+                1 -> SongsTab()
+                2 -> DuplicateFinderTab()
+                3 -> BulkRenameTab()
             }
         }
     }
