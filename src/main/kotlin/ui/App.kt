@@ -43,7 +43,7 @@ import javax.swing.filechooser.FileNameExtensionFilter
 @Composable
 fun App() {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Bibles", "Songs", "Duplicates", "Rename")
+    val tabs = listOf(Strings.tabBibles, Strings.tabSongs, Strings.tabDuplicates, Strings.tabRename)
     val tabIcons = listOf(Icons.Default.Book, Icons.Default.MusicNote, Icons.Default.ContentCopy, Icons.Default.DriveFileRenameOutline)
 
     Scaffold { padding ->
@@ -99,9 +99,9 @@ fun SongsTab() {
     ) {
         // ── SNG Section ──────────────────────────────────────────────────
         item {
-            Text("SNG to SONG", style = MaterialTheme.typography.headlineSmall)
+            Text(Strings.sngTitle, style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Convert SongBeamer .sng files to .song format",
+                Strings.sngDesc,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -117,7 +117,7 @@ fun SongsTab() {
                     }
                 }) {
                     Icon(Icons.Default.FileOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Select .sng Files")
+                    Text(Strings.selectSngFiles)
                 }
                 Button(onClick = {
                     val dir = pickDirectory()
@@ -127,10 +127,10 @@ fun SongsTab() {
                     }
                 }) {
                     Icon(Icons.Default.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Select Folder")
+                    Text(Strings.selectFolder)
                 }
                 if (sngFiles.isNotEmpty()) {
-                    Text("${sngFiles.size} file(s)", style = MaterialTheme.typography.bodySmall)
+                    Text(Strings.fileCount(sngFiles.size), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -141,10 +141,10 @@ fun SongsTab() {
                     val dir = pickDirectory(); if (dir != null) { sngOutputDir = dir }
                 }) {
                     Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Output Folder")
+                    Text(Strings.outputFolder)
                 }
                 Text(
-                    sngOutputDir?.absolutePath ?: "Same as input (default)",
+                    sngOutputDir?.absolutePath ?: Strings.sameAsInput,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -158,7 +158,7 @@ fun SongsTab() {
                         OutlinedButton(onClick = {
                             sngPreview = buildSongPreview(sngFiles, sngOutputDir); sngState = ConvertState.PREVIEW
                         }, enabled = sngFiles.isNotEmpty()) {
-                            Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Preview")
+                            Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                         }
                         Button(onClick = {
                             sngState = ConvertState.CONVERTING
@@ -177,7 +177,7 @@ fun SongsTab() {
                             }
                         }, enabled = sngFiles.isNotEmpty()) {
                             Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                            Text("Convert")
+                            Text(Strings.convert)
                         }
                     }
                     ConvertState.PREVIEW -> {
@@ -198,20 +198,20 @@ fun SongsTab() {
                             }
                         }) {
                             Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                            Text("Convert ${sngFiles.size} file(s)")
+                            Text(Strings.convertNFiles(sngFiles.size))
                         }
-                        OutlinedButton(onClick = { sngState = ConvertState.SELECT; sngPreview = emptyList() }) { Text("Back") }
+                        OutlinedButton(onClick = { sngState = ConvertState.SELECT; sngPreview = emptyList() }) { Text(Strings.back) }
                     }
                     ConvertState.CONVERTING -> {
                         Button(enabled = false, onClick = {}) {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp)); Text("Converting...")
+                            Spacer(Modifier.width(8.dp)); Text(Strings.converting)
                         }
                     }
                     ConvertState.DONE -> {
                         OutlinedButton(onClick = {
                             sngState = ConvertState.SELECT; sngFiles = emptyList(); sngPreview = emptyList(); sngLog = emptyList()
-                        }) { Text("Start Over") }
+                        }) { Text(Strings.startOver) }
                     }
                 }
             }
@@ -219,13 +219,13 @@ fun SongsTab() {
 
         // SNG preview/results
         if (sngState == ConvertState.PREVIEW && sngPreview.isNotEmpty()) {
-            item { Text("Preview:", style = MaterialTheme.typography.titleSmall) }
+            item { Text(Strings.previewLabel, style = MaterialTheme.typography.titleSmall) }
             items(sngPreview) { item -> PreviewRow(item) }
         }
         if (sngState == ConvertState.DONE && sngLog.isNotEmpty()) {
             item {
                 val ok = sngLog.count { it.startsWith("OK") }; val err = sngLog.count { it.startsWith("ERROR") }
-                Text("Done: $ok converted, $err failed", style = MaterialTheme.typography.titleSmall,
+                Text(Strings.doneConverted(ok, err), style = MaterialTheme.typography.titleSmall,
                     color = if (err > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             }
             items(sngLog) { msg -> LogLine(msg) }
@@ -236,9 +236,9 @@ fun SongsTab() {
 
         // ── SPS Section ──────────────────────────────────────────────────
         item {
-            Text("SPS to SONG", style = MaterialTheme.typography.headlineSmall)
+            Text(Strings.spsTitle, style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Convert SongPresenter .sps songbook to individual .song files",
+                Strings.spsDesc,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -254,7 +254,7 @@ fun SongsTab() {
                     }
                 }) {
                     Icon(Icons.Default.FileOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Select .sps File")
+                    Text(Strings.selectSpsFile)
                 }
                 if (spsFile != null) {
                     Text(spsFile!!.name, style = MaterialTheme.typography.bodySmall)
@@ -268,10 +268,10 @@ fun SongsTab() {
                     val dir = pickDirectory(); if (dir != null) { spsOutputDir = dir }
                 }) {
                     Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Output Folder")
+                    Text(Strings.outputFolder)
                 }
                 Text(
-                    spsOutputDir?.absolutePath ?: "Must select output folder",
+                    spsOutputDir?.absolutePath ?: Strings.mustSelectOutput,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (spsOutputDir == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -285,7 +285,7 @@ fun SongsTab() {
                         OutlinedButton(onClick = {
                             spsPreview = buildSpsPreview(spsFile!!, spsOutputDir!!); spsState = ConvertState.PREVIEW
                         }, enabled = spsFile != null && spsOutputDir != null) {
-                            Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Preview")
+                            Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                         }
                         Button(onClick = {
                             spsState = ConvertState.CONVERTING
@@ -307,7 +307,7 @@ fun SongsTab() {
                             }
                         }, enabled = spsFile != null && spsOutputDir != null) {
                             Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                            Text("Convert")
+                            Text(Strings.convert)
                         }
                     }
                     ConvertState.PREVIEW -> {
@@ -331,20 +331,20 @@ fun SongsTab() {
                             }
                         }, enabled = spsPreview?.error == null) {
                             Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                            Text("Convert ${spsPreview?.songCount ?: 0} song(s)")
+                            Text(Strings.convertNSongs(spsPreview?.songCount ?: 0))
                         }
-                        OutlinedButton(onClick = { spsState = ConvertState.SELECT; spsPreview = null }) { Text("Back") }
+                        OutlinedButton(onClick = { spsState = ConvertState.SELECT; spsPreview = null }) { Text(Strings.back) }
                     }
                     ConvertState.CONVERTING -> {
                         Button(enabled = false, onClick = {}) {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp)); Text("Converting...")
+                            Spacer(Modifier.width(8.dp)); Text(Strings.converting)
                         }
                     }
                     ConvertState.DONE -> {
                         OutlinedButton(onClick = {
                             spsState = ConvertState.SELECT; spsFile = null; spsPreview = null; spsLog = emptyList()
-                        }) { Text("Start Over") }
+                        }) { Text(Strings.startOver) }
                     }
                 }
             }
@@ -354,25 +354,25 @@ fun SongsTab() {
         if (spsState == ConvertState.PREVIEW) {
             spsPreview?.let { p ->
                 if (p.error != null) {
-                    item { Text("Error: ${p.error}", color = MaterialTheme.colorScheme.error) }
+                    item { Text(Strings.errorPrefix(p.error ?: ""), color = MaterialTheme.colorScheme.error) }
                 } else {
                     item {
                         Column {
-                            Text("Songbook: ${p.songbookName}", style = MaterialTheme.typography.bodyMedium)
-                            Text("Songs found: ${p.songCount}", style = MaterialTheme.typography.bodyMedium)
+                            Text(Strings.songbookPrefix(p.songbookName), style = MaterialTheme.typography.bodyMedium)
+                            Text(Strings.songsFound(p.songCount), style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                "Output folder: ${p.outputFolder}",
+                                Strings.outputFolderPrefix(p.outputFolder),
                                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (p.folderExists) {
-                                Text("Output folder already exists - files may be overwritten",
+                                Text(Strings.outputFolderOverwrite,
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
                     if (p.sampleTitles.isNotEmpty()) {
-                        item { Text("Songs:", style = MaterialTheme.typography.titleSmall) }
+                        item { Text(Strings.songsLabel, style = MaterialTheme.typography.titleSmall) }
                         items(p.sampleTitles) { title ->
                             Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -383,7 +383,7 @@ fun SongsTab() {
         if (spsState == ConvertState.DONE && spsLog.isNotEmpty()) {
             item {
                 val hasErr = spsLog.any { it.startsWith("ERROR") }
-                Text(if (hasErr) "Completed with errors" else "Done", style = MaterialTheme.typography.titleSmall,
+                Text(if (hasErr) Strings.completedWithErrors else Strings.doneLabel, style = MaterialTheme.typography.titleSmall,
                     color = if (hasErr) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             }
             items(spsLog) { msg -> LogLine(msg) }
@@ -408,9 +408,9 @@ fun BibleConverterTab() {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Bible Converter", style = MaterialTheme.typography.headlineSmall)
+        Text(Strings.bibleTitle, style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Convert Zefania XML bible files to ChurchPresenter .spb format",
+            Strings.bibleDesc,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -425,7 +425,7 @@ fun BibleConverterTab() {
                 }
             }) {
                 Icon(Icons.Default.FileOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text("Select .xml Files")
+                Text(Strings.selectXmlFiles)
             }
             Button(onClick = {
                 val dir = pickDirectory()
@@ -435,10 +435,10 @@ fun BibleConverterTab() {
                 }
             }) {
                 Icon(Icons.Default.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text("Select Folder")
+                Text(Strings.selectFolder)
             }
             if (inputFiles.isNotEmpty()) {
-                Text("${inputFiles.size} file(s)", style = MaterialTheme.typography.bodySmall)
+                Text(Strings.fileCount(inputFiles.size), style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -447,10 +447,10 @@ fun BibleConverterTab() {
                 val dir = pickDirectory(); if (dir != null) { outputDir = dir }
             }) {
                 Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text("Output Folder")
+                Text(Strings.outputFolder)
             }
             Text(
-                outputDir?.absolutePath ?: "Same as input (default)",
+                outputDir?.absolutePath ?: Strings.sameAsInput,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -462,7 +462,7 @@ fun BibleConverterTab() {
                     OutlinedButton(onClick = {
                         previewItems = buildBiblePreview(inputFiles, outputDir); state = ConvertState.PREVIEW
                     }, enabled = inputFiles.isNotEmpty()) {
-                        Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Preview")
+                        Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                     }
                     Button(onClick = {
                         state = ConvertState.CONVERTING
@@ -481,7 +481,7 @@ fun BibleConverterTab() {
                         }
                     }, enabled = inputFiles.isNotEmpty()) {
                         Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text("Convert")
+                        Text(Strings.convert)
                     }
                 }
                 ConvertState.PREVIEW -> {
@@ -502,27 +502,27 @@ fun BibleConverterTab() {
                         }
                     }) {
                         Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text("Convert ${inputFiles.size} file(s)")
+                        Text(Strings.convertNFiles(inputFiles.size))
                     }
-                    OutlinedButton(onClick = { state = ConvertState.SELECT; previewItems = emptyList() }) { Text("Back") }
+                    OutlinedButton(onClick = { state = ConvertState.SELECT; previewItems = emptyList() }) { Text(Strings.back) }
                 }
                 ConvertState.CONVERTING -> {
                     Button(enabled = false, onClick = {}) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp)); Text("Converting...")
+                        Spacer(Modifier.width(8.dp)); Text(Strings.converting)
                     }
                 }
                 ConvertState.DONE -> {
                     OutlinedButton(onClick = {
                         state = ConvertState.SELECT; inputFiles = emptyList(); previewItems = emptyList(); logMessages = emptyList()
-                    }) { Text("Start Over") }
+                    }) { Text(Strings.startOver) }
                 }
             }
         }
 
         when (state) {
             ConvertState.PREVIEW -> {
-                Text("Preview:", style = MaterialTheme.typography.titleSmall)
+                Text(Strings.previewLabel, style = MaterialTheme.typography.titleSmall)
                 Surface(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     shape = MaterialTheme.shapes.small,
@@ -535,7 +535,7 @@ fun BibleConverterTab() {
             }
             ConvertState.DONE -> {
                 val ok = logMessages.count { it.startsWith("OK") }; val err = logMessages.count { it.startsWith("ERROR") }
-                Text("Done: $ok converted, $err failed", style = MaterialTheme.typography.titleSmall,
+                Text(Strings.doneConverted(ok, err), style = MaterialTheme.typography.titleSmall,
                     color = if (err > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 Surface(
                     modifier = Modifier.fillMaxWidth().weight(1f),
@@ -644,10 +644,9 @@ fun DuplicateFinderTab() {
             modifier = Modifier.width(360.dp).fillMaxHeight().verticalScroll(leftScrollState),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("Duplicate Song Finder", style = MaterialTheme.typography.headlineSmall)
+            Text(Strings.dupesTitle, style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Scans in 3 passes: song number, title, lyrics similarity. " +
-                "Run multiple times after deleting to catch more.",
+                Strings.dupesDesc,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -665,7 +664,7 @@ fun DuplicateFinderTab() {
                     }
                 }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Select Folder")
+                    Text(Strings.selectFolder)
                 }
             }
             if (directory != null) {
@@ -677,16 +676,16 @@ fun DuplicateFinderTab() {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Checkbox(checked = matchByNumber, onCheckedChange = { matchByNumber = it },
                     enabled = scanState != ScanState.SCANNING)
-                Text("Match by song number (also checks lyrics similarity)", style = MaterialTheme.typography.bodySmall)
+                Text(Strings.matchByNumber, style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Checkbox(checked = matchByTitle, onCheckedChange = { matchByTitle = it },
                     enabled = scanState != ScanState.SCANNING)
-                Text("Match by title", style = MaterialTheme.typography.bodySmall)
+                Text(Strings.matchByTitle, style = MaterialTheme.typography.bodySmall)
             }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Threshold:", style = MaterialTheme.typography.bodySmall)
+                Text(Strings.threshold, style = MaterialTheme.typography.bodySmall)
                 Slider(
                     value = threshold,
                     onValueChange = { threshold = it },
@@ -718,20 +717,20 @@ fun DuplicateFinderTab() {
                         }
                     }, enabled = directory != null, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Search, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text("Scan for Duplicates")
+                        Text(Strings.scanForDuplicates)
                     }
                 }
                 ScanState.SCANNING -> {
                     Button(enabled = false, onClick = {}, modifier = Modifier.fillMaxWidth()) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp)); Text("Scanning...")
+                        Spacer(Modifier.width(8.dp)); Text(Strings.scanning)
                     }
                 }
                 ScanState.DONE -> {
                     OutlinedButton(onClick = {
                         scanState = ScanState.IDLE; duplicateGroups = emptyList(); expandedGroups = emptySet()
                         keepFolder = null; deleteLog = emptyList(); songFolders = emptyList(); markedForDelete = emptySet()
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Scan Again") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text(Strings.scanAgain) }
                 }
             }
 
@@ -740,10 +739,10 @@ fun DuplicateFinderTab() {
 
                 val dupeCount = duplicateGroups.sumOf { it.songs.size }
                 if (duplicateGroups.isEmpty()) {
-                    Text("No duplicates found among $totalScanned song(s)",
+                    Text(Strings.noDupesFound(totalScanned),
                         style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 } else {
-                    Text("${duplicateGroups.size} group(s) ($dupeCount songs) / $totalScanned scanned",
+                    Text(Strings.groupSummary(duplicateGroups.size, dupeCount, totalScanned),
                         style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
 
                     // Keep folder
@@ -751,7 +750,7 @@ fun DuplicateFinderTab() {
                         Box {
                             OutlinedButton(onClick = { keepDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
                                 Icon(Icons.Default.Shield, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                                Text(if (keepFolder != null) keepFolder!!.name else "Keep Folder")
+                                Text(if (keepFolder != null) keepFolder!!.name else Strings.keepFolder)
                                 Spacer(Modifier.width(4.dp))
                                 Icon(Icons.Default.ArrowDropDown, null, Modifier.size(18.dp))
                             }
@@ -780,18 +779,18 @@ fun DuplicateFinderTab() {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.Delete, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                            Text("Delete ${filesToDelete.size} selected file(s)")
+                            Text(Strings.deleteNSelected(filesToDelete.size))
                         }
                     }
                     if (markedForDelete.isEmpty() && deleteLog.isEmpty()) {
-                        Text("Select files to delete in the results panel, or pick a keep folder to auto-select",
+                        Text(Strings.selectHint,
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     if (deleteLog.isNotEmpty()) {
                         val deleted = deleteLog.count { it.startsWith("Deleted") }
                         val errors = deleteLog.count { it.startsWith("ERROR") }
-                        Text("Done: $deleted deleted, $errors failed",
+                        Text(Strings.doneDeleted(deleted, errors),
                             style = MaterialTheme.typography.titleSmall,
                             color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                         Button(onClick = {
@@ -800,7 +799,7 @@ fun DuplicateFinderTab() {
                             startScan()
                         }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.Refresh, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                            Text("Rescan")
+                            Text(Strings.rescan)
                         }
                     }
                 }
@@ -817,14 +816,14 @@ fun DuplicateFinderTab() {
                     }
                 }, modifier = Modifier.fillMaxWidth(), enabled = directory != null) {
                     Icon(Icons.Default.TextFormat, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Find Latin/Cyrillic homoglyphs")
+                    Text(Strings.findHomoglyphs)
                 }
                 if (homoglyphFiles != null && homoglyphFiles!!.isEmpty()) {
-                    Text("No homoglyphs found",
+                    Text(Strings.noHomoglyphs,
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
                 if (homoglyphFiles != null && homoglyphFiles!!.isNotEmpty() && homoglyphLog.isEmpty()) {
-                    Text("${homoglyphFiles!!.size} file(s) with mixed Latin/Cyrillic characters",
+                    Text(Strings.filesWithHomoglyphs(homoglyphFiles!!.size),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     homoglyphFiles!!.take(5).forEach { f ->
                         Text(f.name, style = MaterialTheme.typography.bodySmall,
@@ -832,7 +831,7 @@ fun DuplicateFinderTab() {
                             modifier = Modifier.padding(start = 8.dp))
                     }
                     if (homoglyphFiles!!.size > 5) {
-                        Text("... and ${homoglyphFiles!!.size - 5} more",
+                        Text(Strings.andNMore(homoglyphFiles!!.size - 5),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Button(onClick = {
@@ -848,15 +847,15 @@ fun DuplicateFinderTab() {
                         }
                     }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Build, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text("Fix ${homoglyphFiles!!.size} file(s)")
+                        Text(Strings.fixNFiles(homoglyphFiles!!.size))
                     }
-                    Text("Only fixes lines that are primarily Cyrillic — English lines are left untouched",
+                    Text(Strings.homoglyphFixNote,
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (homoglyphLog.isNotEmpty()) {
                     val fixed = homoglyphLog.count { it.startsWith("Fixed") }
                     val errors = homoglyphLog.count { it.startsWith("ERROR") }
-                    Text("Done: $fixed fixed, $errors failed",
+                    Text(Strings.doneFixed(fixed, errors),
                         style = MaterialTheme.typography.titleSmall,
                         color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 }
@@ -873,14 +872,14 @@ fun DuplicateFinderTab() {
                     }
                 }, modifier = Modifier.fillMaxWidth(), enabled = directory != null) {
                     Icon(Icons.Default.CleaningServices, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text("Find control characters (null bytes, vertical tabs)")
+                    Text(Strings.findControlChars)
                 }
                 if (sanitizeFiles != null && sanitizeFiles!!.isEmpty()) {
-                    Text("No control characters found",
+                    Text(Strings.noControlChars,
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
                 if (sanitizeFiles != null && sanitizeFiles!!.isNotEmpty() && sanitizeLog.isEmpty()) {
-                    Text("${sanitizeFiles!!.size} file(s) with null bytes or vertical tabs",
+                    Text(Strings.filesWithControlChars(sanitizeFiles!!.size),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                     sanitizeFiles!!.take(5).forEach { f ->
                         Text(f.name, style = MaterialTheme.typography.bodySmall,
@@ -888,7 +887,7 @@ fun DuplicateFinderTab() {
                             modifier = Modifier.padding(start = 8.dp))
                     }
                     if (sanitizeFiles!!.size > 5) {
-                        Text("... and ${sanitizeFiles!!.size - 5} more",
+                        Text(Strings.andNMore(sanitizeFiles!!.size - 5),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Button(onClick = {
@@ -904,22 +903,23 @@ fun DuplicateFinderTab() {
                         }
                     }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Build, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text("Fix ${sanitizeFiles!!.size} file(s)")
+                        Text(Strings.fixNFiles(sanitizeFiles!!.size))
                     }
                 }
                 if (sanitizeLog.isNotEmpty()) {
                     val fixed = sanitizeLog.count { it.startsWith("Fixed") }
                     val errors = sanitizeLog.count { it.startsWith("ERROR") }
-                    Text("Done: $fixed fixed, $errors failed",
+                    Text(Strings.doneFixed(fixed, errors),
                         style = MaterialTheme.typography.titleSmall,
                         color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 }
 
                 // Filters
                 HorizontalDivider()
-                Text("Filters", style = MaterialTheme.typography.labelMedium)
+                Text(Strings.filters, style = MaterialTheme.typography.labelMedium)
 
                 val allCategories = listOf("Same song number", "Same title", "Similar lyrics")
+                val categoryLabels = mapOf("Same song number" to Strings.catSameNumber, "Same title" to Strings.catSameTitle, "Similar lyrics" to Strings.catSimilarLyrics)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     allCategories.forEach { cat ->
                         FilterChip(
@@ -928,13 +928,13 @@ fun DuplicateFinderTab() {
                                 filterCategories = if (cat in filterCategories)
                                     filterCategories - cat else filterCategories + cat
                             },
-                            label = { Text(cat, style = MaterialTheme.typography.labelSmall) }
+                            label = { Text(categoryLabels[cat] ?: cat, style = MaterialTheme.typography.labelSmall) }
                         )
                     }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Min sim:", style = MaterialTheme.typography.bodySmall)
+                    Text(Strings.minSim, style = MaterialTheme.typography.bodySmall)
                     Slider(
                         value = filterMinSimilarity,
                         onValueChange = { filterMinSimilarity = it },
@@ -945,7 +945,7 @@ fun DuplicateFinderTab() {
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Files/group:", style = MaterialTheme.typography.bodySmall)
+                    Text(Strings.filesPerGroup, style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(
                         value = filterMinFiles.toString(),
                         onValueChange = { v -> v.filter { it.isDigit() }.toIntOrNull()?.let { if (it >= 2) filterMinFiles = it } },
@@ -965,7 +965,7 @@ fun DuplicateFinderTab() {
                         filterCategories = setOf("Same song number", "Same title", "Similar lyrics")
                     }) {
                         Icon(Icons.Default.Clear, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp))
-                        Text("Clear filters")
+                        Text(Strings.clearFilters)
                     }
                 }
             }
@@ -975,24 +975,24 @@ fun DuplicateFinderTab() {
         if (showDeleteConfirm) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirm = false },
-                title = { Text("Delete duplicates?") },
+                title = { Text(Strings.deleteDupesTitle) },
                 text = {
                     Column {
-                        Text("This will permanently delete ${filesToDelete.size} selected file(s).")
+                        Text(Strings.permanentlyDelete(filesToDelete.size))
                         if (keepFolder != null) {
                             Spacer(Modifier.height(4.dp))
-                            Text("Keep folder: ${keepFolder!!.absolutePath}",
+                            Text(Strings.keepFolderPrefix(keepFolder!!.absolutePath),
                                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                 color = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(Modifier.height(8.dp))
-                        Text("Files to delete:", style = MaterialTheme.typography.titleSmall)
+                        Text(Strings.filesToDeleteLabel, style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.height(4.dp))
                         filesToDelete.take(10).forEach { f ->
                             Text(f.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                         }
                         if (filesToDelete.size > 10) {
-                            Text("... and ${filesToDelete.size - 10} more",
+                            Text(Strings.andNMore(filesToDelete.size - 10),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -1008,9 +1008,9 @@ fun DuplicateFinderTab() {
                                 }
                             }
                         }
-                    }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
+                    }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text(Strings.delete) }
                 },
-                dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+                dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text(Strings.cancel) } }
             )
         }
 
@@ -1018,15 +1018,15 @@ fun DuplicateFinderTab() {
         if (showHomoglyphPrompt) {
             AlertDialog(
                 onDismissRequest = { showHomoglyphPrompt = false },
-                title = { Text("Mixed Latin/Cyrillic characters found") },
+                title = { Text(Strings.homoglyphDialogTitle) },
                 text = {
                     Column {
-                        Text("${pendingHomoglyphFiles.size} file(s) contain Latin characters mixed into Cyrillic text (homoglyphs). This can prevent duplicates from being detected.")
+                        Text("${pendingHomoglyphFiles.size} ${Strings.homoglyphDialogDescSuffix}")
                         Spacer(Modifier.height(8.dp))
-                        Text("Would you like to fix them before scanning?",
+                        Text(Strings.homoglyphDialogQuestion,
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(4.dp))
-                        Text("Only Cyrillic lines are affected — English lines are left untouched.",
+                        Text(Strings.homoglyphDialogNote,
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
@@ -1039,13 +1039,13 @@ fun DuplicateFinderTab() {
                             }
                             startScan()
                         }
-                    }) { Text("Fix & Scan") }
+                    }) { Text(Strings.fixAndScan) }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = {
                         showHomoglyphPrompt = false
                         startScan()
-                    }) { Text("Skip & Scan") }
+                    }) { Text(Strings.skipAndScan) }
                 }
             )
         }
@@ -1055,7 +1055,7 @@ fun DuplicateFinderTab() {
             val cg = compareGroup!!
             DialogWindow(
                 onCloseRequest = { compareGroup = null },
-                title = "Compare: ${cg.songs.first().title}",
+                title = Strings.compareTitle(cg.songs.first().title),
                 resizable = true,
                 state = rememberDialogState(size = DpSize(900.dp, 700.dp))
             ) {
@@ -1070,7 +1070,7 @@ fun DuplicateFinderTab() {
                             ) {
                                 // Left file selector
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Left", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(Strings.left, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     var leftExpanded by remember { mutableStateOf(false) }
                                     Box {
                                         OutlinedButton(onClick = { leftExpanded = true }, modifier = Modifier.fillMaxWidth()) {
@@ -1107,20 +1107,20 @@ fun DuplicateFinderTab() {
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Spacer(Modifier.width(4.dp))
-                                            Text("Mark for deletion", style = MaterialTheme.typography.labelSmall,
+                                            Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                                 color = if (leftMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(Modifier.weight(1f))
                                             TextButton(onClick = { Desktop.getDesktop().open(leftFile) },
                                                 modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                                 Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
-                                                Text("Open", style = MaterialTheme.typography.labelSmall)
+                                                Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                             }
                                         }
                                     }
                                 }
                                 // Right file selector
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Right", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(Strings.right, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     var rightExpanded by remember { mutableStateOf(false) }
                                     Box {
                                         OutlinedButton(onClick = { rightExpanded = true }, modifier = Modifier.fillMaxWidth()) {
@@ -1157,13 +1157,13 @@ fun DuplicateFinderTab() {
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Spacer(Modifier.width(4.dp))
-                                            Text("Mark for deletion", style = MaterialTheme.typography.labelSmall,
+                                            Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                                 color = if (rightMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(Modifier.weight(1f))
                                             TextButton(onClick = { Desktop.getDesktop().open(rightFile) },
                                                 modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                                 Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
-                                                Text("Open", style = MaterialTheme.typography.labelSmall)
+                                                Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                             }
                                         }
                                     }
@@ -1181,18 +1181,18 @@ fun DuplicateFinderTab() {
                                 val rightMissing = allSections - rightSong.sections.toSet()
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("${leftSong.sections.size} sections, ${leftSong.lyricsText.lines().size} lines",
+                                        Text(Strings.sectionsLines(leftSong.sections.size, leftSong.lyricsText.lines().size),
                                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         if (leftMissing.isNotEmpty()) {
-                                            Text("Missing: ${leftMissing.joinToString(", ")}",
+                                            Text(Strings.missingPrefix(leftMissing.joinToString(", ")),
                                                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                                         }
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("${rightSong.sections.size} sections, ${rightSong.lyricsText.lines().size} lines",
+                                        Text(Strings.sectionsLines(rightSong.sections.size, rightSong.lyricsText.lines().size),
                                             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         if (rightMissing.isNotEmpty()) {
-                                            Text("Missing: ${rightMissing.joinToString(", ")}",
+                                            Text(Strings.missingPrefix(rightMissing.joinToString(", ")),
                                                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                                         }
                                     }
@@ -1292,7 +1292,7 @@ fun DuplicateFinderTab() {
         ) {
             if (scanState != ScanState.DONE) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Results will appear here", style = MaterialTheme.typography.bodyMedium,
+                    Text(Strings.resultsPlaceholder, style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
@@ -1303,7 +1303,7 @@ fun DuplicateFinderTab() {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "Showing ${filteredGroups.size} of ${duplicateGroups.size} group(s)",
+                            Strings.showingGroups(filteredGroups.size, duplicateGroups.size),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
@@ -1322,7 +1322,7 @@ fun DuplicateFinderTab() {
                             }
                             markedForDelete = markedForDelete + toMark
                         }, modifier = Modifier.height(28.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                            Text("Select same-folder dupes", style = MaterialTheme.typography.labelSmall)
+                            Text(Strings.selectSameFolder, style = MaterialTheme.typography.labelSmall)
                         }
                         // Expand/Collapse all
                         TextButton(onClick = {
@@ -1330,7 +1330,7 @@ fun DuplicateFinderTab() {
                                 emptySet() else filteredGroups.indices.toSet()
                         }, modifier = Modifier.height(28.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                             Text(
-                                if (expandedGroups.size >= filteredGroups.size) "Collapse all" else "Expand all",
+                                if (expandedGroups.size >= filteredGroups.size) Strings.collapseAll else Strings.expandAll,
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -1368,13 +1368,13 @@ fun DuplicateFinderTab() {
                                             Spacer(Modifier.width(8.dp))
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    "Group ${groupIdx + 1}: ${group.songs.first().title}",
+                                                    Strings.groupHeader(groupIdx + 1, group.songs.first().title),
                                                     style = MaterialTheme.typography.bodyMedium
                                                 )
                                                 val avgSim = if (group.similarities.size > 1)
                                                     group.similarities.drop(1).average() else 1.0
                                                 Text(
-                                                    "${group.songs.size} files \u2022 ${group.reason} \u2022 ${(avgSim * 100).toInt()}% avg similarity",
+                                                    Strings.groupDetail(group.songs.size, group.reason, (avgSim * 100).toInt()),
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
@@ -1420,19 +1420,19 @@ fun DuplicateFinderTab() {
                                                     Text(song.file.name, style = MaterialTheme.typography.bodyMedium)
                                                     if (isKept && !isMarked) {
                                                         Spacer(Modifier.width(6.dp))
-                                                        Text("KEEP", style = MaterialTheme.typography.labelSmall,
+                                                        Text(Strings.labelKeep, style = MaterialTheme.typography.labelSmall,
                                                             color = MaterialTheme.colorScheme.primary)
                                                     }
                                                     if (isMarked) {
                                                         Spacer(Modifier.width(6.dp))
-                                                        Text("DELETE", style = MaterialTheme.typography.labelSmall,
+                                                        Text(Strings.labelDelete, style = MaterialTheme.typography.labelSmall,
                                                             color = MaterialTheme.colorScheme.error)
                                                     }
                                                 }
                                                 val simPercent = if (group.similarities.size > songIdx)
                                                     "${(group.similarities[songIdx] * 100).toInt()}%" else ""
                                                 Text(
-                                                    "Title: ${song.title}" + if (simPercent.isNotEmpty()) " \u2022 $simPercent similarity" else "",
+                                                    Strings.titlePrefix(song.title) + if (simPercent.isNotEmpty()) " \u2022 $simPercent" else "",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     modifier = Modifier.padding(start = 26.dp, top = 2.dp)
@@ -1442,14 +1442,14 @@ fun DuplicateFinderTab() {
                                                     val allSections = group.songs.flatMap { it.sections }.distinct()
                                                     val missing = allSections - song.sections.toSet()
                                                     Text(
-                                                        "Sections: ${song.sections.joinToString(", ")}",
+                                                        Strings.sectionsPrefix(song.sections.joinToString(", ")),
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         modifier = Modifier.padding(start = 26.dp, top = 2.dp)
                                                     )
                                                     if (missing.isNotEmpty()) {
                                                         Text(
-                                                            "Missing: ${missing.joinToString(", ")}",
+                                                            Strings.missingPrefix(missing.joinToString(", ")),
                                                             style = MaterialTheme.typography.bodySmall,
                                                             color = MaterialTheme.colorScheme.error,
                                                             modifier = Modifier.padding(start = 26.dp, top = 1.dp)
@@ -1504,9 +1504,9 @@ fun BulkRenameTab() {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Bulk Rename", style = MaterialTheme.typography.headlineSmall)
+        Text(Strings.renameTitle, style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Rename .song files by stripping leading numbers and/or using the first verse line",
+            Strings.renameDesc,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1521,7 +1521,7 @@ fun BulkRenameTab() {
                 }
             }) {
                 Icon(Icons.Default.Folder, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text("Select Folder")
+                Text(Strings.selectFolder)
             }
             if (directory != null) {
                 Text(directory!!.absolutePath, style = MaterialTheme.typography.bodySmall,
@@ -1532,20 +1532,21 @@ fun BulkRenameTab() {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Checkbox(checked = stripNumbers, onCheckedChange = { stripNumbers = it },
                 enabled = state != ConvertState.CONVERTING)
-            Text("Strip leading numbers (e.g. \"0111 - Title\" → \"Title\")", style = MaterialTheme.typography.bodySmall)
+            Text(Strings.stripNumbers, style = MaterialTheme.typography.bodySmall)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Checkbox(checked = renameToFirstVerse, onCheckedChange = { renameToFirstVerse = it },
                 enabled = state != ConvertState.CONVERTING)
-            Text("Rename to first line of verse 1", style = MaterialTheme.typography.bodySmall)
+            Text(Strings.renameFirstVerse, style = MaterialTheme.typography.bodySmall)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Case:", style = MaterialTheme.typography.bodySmall)
-            listOf("None", "Sentence case", "Title Case", "lowercase", "UPPERCASE").forEach { opt ->
+            Text(Strings.caseLabel, style = MaterialTheme.typography.bodySmall)
+            val caseOptions = listOf("None" to Strings.caseNone, "Sentence case" to Strings.caseSentence, "Title Case" to Strings.caseTitle, "lowercase" to Strings.caseLower, "UPPERCASE" to Strings.caseUpper)
+            caseOptions.forEach { (id, label) ->
                 FilterChip(
-                    selected = caseOption == opt,
-                    onClick = { caseOption = opt },
-                    label = { Text(opt, style = MaterialTheme.typography.labelSmall) },
+                    selected = caseOption == id,
+                    onClick = { caseOption = id },
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     enabled = state != ConvertState.CONVERTING
                 )
             }
@@ -1567,7 +1568,7 @@ fun BulkRenameTab() {
                         preview = buildRenamePreview(directory!!, stripNumbers, renameToFirstVerse, caseOption)
                         state = ConvertState.PREVIEW
                     }, enabled = directory != null) {
-                        Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Preview")
+                        Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                     }
                 }
                 ConvertState.PREVIEW -> {
@@ -1599,20 +1600,20 @@ fun BulkRenameTab() {
                         }
                     }, enabled = renameCount > 0) {
                         Icon(Icons.Default.DriveFileRenameOutline, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text("Rename $renameCount file(s)")
+                        Text(Strings.renameNFiles(renameCount))
                     }
-                    OutlinedButton(onClick = { state = ConvertState.SELECT; preview = emptyList() }) { Text("Back") }
+                    OutlinedButton(onClick = { state = ConvertState.SELECT; preview = emptyList() }) { Text(Strings.back) }
                 }
                 ConvertState.CONVERTING -> {
                     Button(enabled = false, onClick = {}) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp)); Text("Renaming...")
+                        Spacer(Modifier.width(8.dp)); Text(Strings.renaming)
                     }
                 }
                 ConvertState.DONE -> {
                     OutlinedButton(onClick = {
                         state = ConvertState.SELECT; preview = emptyList(); logMessages = emptyList()
-                    }) { Text("Start Over") }
+                    }) { Text(Strings.startOver) }
                 }
             }
         }
@@ -1621,8 +1622,8 @@ fun BulkRenameTab() {
             ConvertState.PREVIEW -> {
                 val renameCount = preview.count { it.file.name != it.newName }
                 val conflicts = preview.count { it.conflict }
-                Text("$renameCount to rename, ${preview.size - renameCount} unchanged" +
-                    if (conflicts > 0) ", $conflicts conflicts (will be skipped)" else "",
+                Text(Strings.renameSummary(renameCount, preview.size - renameCount) +
+                    if (conflicts > 0) ", ${Strings.conflictsSummary(conflicts)}" else "",
                     style = MaterialTheme.typography.titleSmall)
                 // Delete marked files button
                 if (renameMarkedForDelete.isNotEmpty()) {
@@ -1632,13 +1633,13 @@ fun BulkRenameTab() {
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
                         Icon(Icons.Default.Delete, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                        Text("Delete ${renameMarkedForDelete.size} marked file(s)")
+                        Text(Strings.deleteNMarked(renameMarkedForDelete.size))
                     }
                     if (showDeleteConfirm) {
                         AlertDialog(
                             onDismissRequest = { showDeleteConfirm = false },
-                            title = { Text("Delete files?") },
-                            text = { Text("Permanently delete ${renameMarkedForDelete.size} file(s)?") },
+                            title = { Text(Strings.deleteFilesTitle) },
+                            text = { Text(Strings.permanentlyDeleteShort(renameMarkedForDelete.size)) },
                             confirmButton = {
                                 Button(onClick = {
                                     showDeleteConfirm = false
@@ -1649,9 +1650,9 @@ fun BulkRenameTab() {
                                         renameMarkedForDelete = emptySet()
                                         preview = buildRenamePreview(directory!!, stripNumbers, renameToFirstVerse, caseOption)
                                     }
-                                }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
+                                }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text(Strings.delete) }
                             },
-                            dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+                            dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text(Strings.cancel) } }
                         )
                     }
                 }
@@ -1698,7 +1699,7 @@ fun BulkRenameTab() {
                                         }
                                     }
                                     if (entry.conflict) {
-                                        Text("conflict", style = MaterialTheme.typography.labelSmall,
+                                        Text(Strings.conflict, style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.error)
                                     }
                                 }
@@ -1712,7 +1713,7 @@ fun BulkRenameTab() {
                 val ok = logMessages.count { it.startsWith("OK") }
                 val skipped = logMessages.count { it.startsWith("SKIP") }
                 val err = logMessages.count { it.startsWith("ERROR") }
-                Text("Done: $ok renamed, $skipped skipped, $err failed", style = MaterialTheme.typography.titleSmall,
+                Text(Strings.doneRenamed(ok, skipped, err), style = MaterialTheme.typography.titleSmall,
                     color = if (err > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 Surface(
                     modifier = Modifier.fillMaxWidth().weight(1f),
@@ -1738,7 +1739,7 @@ fun BulkRenameTab() {
         }
         DialogWindow(
             onCloseRequest = { renameCompareFiles = null },
-            title = "Compare: ${cFiles.first().nameWithoutExtension}",
+            title = Strings.compareTitle(cFiles.first().nameWithoutExtension),
             resizable = true,
             state = rememberDialogState(size = DpSize(900.dp, 700.dp))
         ) {
@@ -1749,7 +1750,7 @@ fun BulkRenameTab() {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             // Left
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Left", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(Strings.left, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 var leftExp by remember { mutableStateOf(false) }
                                 Box {
                                     OutlinedButton(onClick = { leftExp = true }, modifier = Modifier.fillMaxWidth()) {
@@ -1773,20 +1774,20 @@ fun BulkRenameTab() {
                                             renameMarkedForDelete = if (leftMarked) renameMarkedForDelete - leftPath else renameMarkedForDelete + leftPath
                                         }, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text("Mark for deletion", style = MaterialTheme.typography.labelSmall,
+                                        Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                             color = if (leftMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.weight(1f))
                                         TextButton(onClick = { Desktop.getDesktop().open(leftFileR) },
                                             modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                             Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
-                                            Text("Open", style = MaterialTheme.typography.labelSmall)
+                                            Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
                                 }
                             }
                             // Right
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Right", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(Strings.right, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 var rightExp by remember { mutableStateOf(false) }
                                 Box {
                                     OutlinedButton(onClick = { rightExp = true }, modifier = Modifier.fillMaxWidth()) {
@@ -1810,13 +1811,13 @@ fun BulkRenameTab() {
                                             renameMarkedForDelete = if (rightMarked) renameMarkedForDelete - rightPath else renameMarkedForDelete + rightPath
                                         }, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text("Mark for deletion", style = MaterialTheme.typography.labelSmall,
+                                        Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                             color = if (rightMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.weight(1f))
                                         TextButton(onClick = { Desktop.getDesktop().open(rightFileR) },
                                             modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                             Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
-                                            Text("Open", style = MaterialTheme.typography.labelSmall)
+                                            Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
                                 }
@@ -2011,7 +2012,7 @@ private fun PreviewRow(item: PreviewItem) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 22.dp, top = 2.dp))
             }
             if (item.willOverwrite) {
-                Text("Output file already exists - will be overwritten", style = MaterialTheme.typography.bodySmall,
+                Text(Strings.outputOverwrite, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(start = 22.dp, top = 2.dp))
             }
             Text(item.outputPath, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -2086,7 +2087,7 @@ private fun pickFiles(description: String, extension: String, multiSelection: Bo
     val chooser = JFileChooser(defaultDir).apply {
         fileFilter = FileNameExtensionFilter(description, extension)
         isMultiSelectionEnabled = multiSelection
-        dialogTitle = "Select $description"
+        dialogTitle = Strings.selectDialog(description)
     }
     return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
         if (multiSelection) chooser.selectedFiles.toList() else listOfNotNull(chooser.selectedFile)
@@ -2096,7 +2097,7 @@ private fun pickFiles(description: String, extension: String, multiSelection: Bo
 private fun pickDirectory(): File? {
     val chooser = JFileChooser(defaultDir).apply {
         fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-        dialogTitle = "Select Folder"
+        dialogTitle = Strings.selectFolder
     }
     return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
 }
