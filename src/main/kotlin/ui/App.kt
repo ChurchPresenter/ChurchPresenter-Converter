@@ -29,6 +29,9 @@ import androidx.compose.ui.window.rememberDialogState
 import converter.DuplicateFinder
 import converter.TextUtils
 import converter.DuplicateGroup
+import converter.DocumentTextExtractor
+import converter.MarkdownToSongConverter
+import converter.ParsedSong
 import converter.SngToSongConverter
 import converter.SpsToSongConverter
 import converter.XmlToSpbConverter
@@ -90,6 +93,15 @@ fun SongsTab() {
     var spsPreview by remember { mutableStateOf<SpsPreviewData?>(null) }
     var spsLog by remember { mutableStateOf<List<String>>(emptyList()) }
     var spsState by remember { mutableStateOf(ConvertState.SELECT) }
+
+    // Document state
+    var docFiles by remember { mutableStateOf<List<File>>(emptyList()) }
+    var docOutputDir by remember { mutableStateOf<File?>(null) }
+    var docParsedSongs by remember { mutableStateOf<List<ParsedSong>>(emptyList()) }
+    var docMarkdown by remember { mutableStateOf("") }
+    var docLog by remember { mutableStateOf<List<String>>(emptyList()) }
+    var docState by remember { mutableStateOf(ConvertState.SELECT) }
+    var docShowMarkdown by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
@@ -387,6 +399,225 @@ fun SongsTab() {
                     color = if (hasErr) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             }
             items(spsLog) { msg -> LogLine(msg) }
+        }
+
+        // ── Divider ──────────────────────────────────────────────────────
+        item { HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp)) }
+
+        // ── Document Section ──────────────────────────────────────────────
+        item {
+            Text(Strings.docTitle, style = MaterialTheme.typography.headlineSmall)
+            Text(
+                Strings.docDesc,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    val files = pickFiles("Documents (PDF, DOCX, PPTX)", "pdf", "docx", "pptx", multiSelection = true)
+                    if (files.isNotEmpty()) {
+                        docFiles = files; docState = ConvertState.SELECT
+                        docParsedSongs = emptyList(); docLog = emptyList(); docMarkdown = ""
+                    }
+                }) {
+                    Icon(Icons.Default.FileOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Text(Strings.selectDocFiles)
+                }
+                if (docFiles.isNotEmpty()) {
+                    Text(Strings.fileCount(docFiles.size), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    val dir = pickDirectory(); if (dir != null) { docOutputDir = dir }
+                }) {
+                    Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                    Text(Strings.outputFolder)
+                }
+                Text(
+                    docOutputDir?.absolutePath ?: Strings.mustSelectOutput,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (docOutputDir == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (docState) {
+                    ConvertState.SELECT -> {
+                        OutlinedButton(onClick = {
+                            docState = ConvertState.CONVERTING
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    val allSongs = mutableListOf<ParsedSong>()
+                                    val textParts = mutableListOf<String>()
+                                    for (file in docFiles) {
+                                        val (text, songs) = MarkdownToSongConverter.preview(file)
+                                        textParts.add("── ${file.name} ──\n$text")
+                                        allSongs.addAll(songs)
+                                    }
+                                    docMarkdown = textParts.joinToString("\n\n")
+                                    docParsedSongs = allSongs
+                                }
+                                docState = ConvertState.PREVIEW
+                            }
+                        }, enabled = docFiles.isNotEmpty()) {
+                            Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
+                        }
+                        Button(onClick = {
+                            docState = ConvertState.CONVERTING
+                            scope.launch {
+                                docLog = withContext(Dispatchers.IO) {
+                                    val msgs = mutableListOf<String>()
+                                    for (file in docFiles) {
+                                        try {
+                                            val result = DocumentTextExtractor.extract(file)
+                                            if (!result.success) {
+                                                msgs.add("ERROR: ${file.name} - ${result.errorMessage}")
+                                                continue
+                                            }
+                                            val convResult = MarkdownToSongConverter.convert(result.text, file.name, docOutputDir!!)
+                                            for (outFile in convResult.outputFiles) {
+                                                msgs.add("OK: ${file.name} -> ${outFile.name}")
+                                            }
+                                            convResult.errors.forEach { msgs.add("ERROR: ${file.name} - $it") }
+                                        } catch (e: Exception) {
+                                            msgs.add("ERROR: ${file.name} - ${e.message}")
+                                        }
+                                    }
+                                    msgs
+                                }
+                                docState = ConvertState.DONE
+                            }
+                        }, enabled = docFiles.isNotEmpty() && docOutputDir != null) {
+                            Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                            Text(Strings.convert)
+                        }
+                    }
+                    ConvertState.PREVIEW -> {
+                        Button(onClick = {
+                            docState = ConvertState.CONVERTING
+                            scope.launch {
+                                docLog = withContext(Dispatchers.IO) {
+                                    val msgs = mutableListOf<String>()
+                                    for (file in docFiles) {
+                                        try {
+                                            val result = DocumentTextExtractor.extract(file)
+                                            if (!result.success) {
+                                                msgs.add("ERROR: ${file.name} - ${result.errorMessage}")
+                                                continue
+                                            }
+                                            val convResult = MarkdownToSongConverter.convert(result.text, file.name, docOutputDir!!)
+                                            for (outFile in convResult.outputFiles) {
+                                                msgs.add("OK: ${file.name} -> ${outFile.name}")
+                                            }
+                                            convResult.errors.forEach { msgs.add("ERROR: ${file.name} - $it") }
+                                        } catch (e: Exception) {
+                                            msgs.add("ERROR: ${file.name} - ${e.message}")
+                                        }
+                                    }
+                                    msgs
+                                }
+                                docState = ConvertState.DONE
+                            }
+                        }, enabled = docOutputDir != null) {
+                            Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                            Text(Strings.convertNSongs(docParsedSongs.size))
+                        }
+                        OutlinedButton(onClick = { docState = ConvertState.SELECT; docParsedSongs = emptyList(); docMarkdown = "" }) { Text(Strings.back) }
+                    }
+                    ConvertState.CONVERTING -> {
+                        Button(enabled = false, onClick = {}) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp)); Text(Strings.converting)
+                        }
+                    }
+                    ConvertState.DONE -> {
+                        OutlinedButton(onClick = {
+                            docState = ConvertState.SELECT; docFiles = emptyList()
+                            docParsedSongs = emptyList(); docLog = emptyList(); docMarkdown = ""
+                        }) { Text(Strings.startOver) }
+                    }
+                }
+            }
+        }
+
+        // Document preview
+        if (docState == ConvertState.PREVIEW && docParsedSongs.isNotEmpty()) {
+            item {
+                Column {
+                    Text(Strings.songsExtracted(docParsedSongs.size), style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FilterChip(
+                            selected = !docShowMarkdown,
+                            onClick = { docShowMarkdown = false },
+                            label = { Text(Strings.docPreviewSong) }
+                        )
+                        FilterChip(
+                            selected = docShowMarkdown,
+                            onClick = { docShowMarkdown = true },
+                            label = { Text(Strings.docPreviewMarkdown) }
+                        )
+                    }
+                }
+            }
+            if (docShowMarkdown) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                    ) {
+                        Text(
+                            docMarkdown,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            modifier = Modifier.padding(10.dp).horizontalScroll(rememberScrollState())
+                        )
+                    }
+                }
+            } else {
+                items(docParsedSongs) { song ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(song.title, style = MaterialTheme.typography.bodyMedium)
+                            val details = mutableListOf<String>()
+                            if (song.author.isNotBlank()) details.add(song.author)
+                            details.add(Strings.sectionsLines(song.sections.size, song.sections.sumOf { it.lines.size }))
+                            Text(
+                                details.joinToString(" | "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (song.sections.isNotEmpty()) {
+                                Text(
+                                    song.sections.joinToString(", ") { it.label },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (docState == ConvertState.DONE && docLog.isNotEmpty()) {
+            item {
+                val ok = docLog.count { it.startsWith("OK") }; val err = docLog.count { it.startsWith("ERROR") }
+                Text(Strings.doneConverted(ok, err), style = MaterialTheme.typography.titleSmall,
+                    color = if (err > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            }
+            items(docLog) { msg -> LogLine(msg) }
         }
     }
 }
@@ -2083,9 +2314,9 @@ private fun buildBiblePreview(files: List<File>, outputDir: File?): List<Preview
 
 private val defaultDir: File = File(System.getProperty("user.home"), "Downloads")
 
-private fun pickFiles(description: String, extension: String, multiSelection: Boolean): List<File> {
+private fun pickFiles(description: String, vararg extensions: String, multiSelection: Boolean): List<File> {
     val chooser = JFileChooser(defaultDir).apply {
-        fileFilter = FileNameExtensionFilter(description, extension)
+        fileFilter = FileNameExtensionFilter(description, *extensions)
         isMultiSelectionEnabled = multiSelection
         dialogTitle = Strings.selectDialog(description)
     }

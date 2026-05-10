@@ -14,6 +14,8 @@ dependencies {
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
     implementation("org.xerial:sqlite-jdbc:3.45.3.0")
+    implementation("org.apache.pdfbox:pdfbox:2.0.33")
+    implementation("org.apache.poi:poi-ooxml:5.3.0")
 }
 
 compose.desktop {

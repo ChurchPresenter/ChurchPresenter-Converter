@@ -160,4 +160,12 @@ object Strings {
     fun compareTitle(name: String): String = bundle.getString("compare_title").format(name)
     fun selectDialog(desc: String): String = bundle.getString("select_dialog").format(desc)
     fun errorPrefix(msg: String): String = bundle.getString("error_prefix").format(msg)
+
+    // Document conversion section
+    val docTitle: String get() = bundle.getString("doc_title")
+    val docDesc: String get() = bundle.getString("doc_desc")
+    val selectDocFiles: String get() = bundle.getString("select_doc_files")
+    val docPreviewMarkdown: String get() = bundle.getString("doc_preview_markdown")
+    val docPreviewSong: String get() = bundle.getString("doc_preview_song")
+    fun songsExtracted(n: Int): String = bundle.getString("songs_extracted").format(n)
 }
