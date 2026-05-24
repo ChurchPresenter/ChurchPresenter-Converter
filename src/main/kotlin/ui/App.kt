@@ -102,6 +102,7 @@ import converter.MarkdownToSongConverter
 import converter.ParsedSong
 import converter.SngToSongConverter
 import converter.SpsToSongConverter
+import converter.SpbVersePatcher
 import converter.XmlToSpbConverter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -702,6 +703,9 @@ fun BibleConverterTab() {
     var state by remember { mutableStateOf(ConvertState.SELECT) }
     var previewItems by remember { mutableStateOf<List<PreviewItem>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    var spbFiles by remember { mutableStateOf<List<File>>(emptyList()) }
+    var fixState by remember { mutableStateOf(ConvertState.SELECT) }
+    var fixLog by remember { mutableStateOf<List<String>>(emptyList()) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -847,6 +851,78 @@ fun BibleConverterTab() {
                 }
             }
             else -> {}
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+        Text(Strings.fixVersesTitle, style = MaterialTheme.typography.titleMedium)
+        Text(
+            Strings.fixVersesDesc,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                val files = pickFiles("SPB Bible Files", "spb", multiSelection = true)
+                if (files.isNotEmpty()) {
+                    spbFiles = files; fixState = ConvertState.SELECT; fixLog = emptyList()
+                }
+            }) {
+                Icon(Icons.Default.FileOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                Text(Strings.selectSpbFiles)
+            }
+            if (spbFiles.isNotEmpty()) {
+                Text(Strings.fileCount(spbFiles.size), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            when (fixState) {
+                ConvertState.SELECT -> {
+                    Button(onClick = {
+                        fixState = ConvertState.CONVERTING
+                        scope.launch {
+                            fixLog = withContext(Dispatchers.IO) {
+                                spbFiles.map { file ->
+                                    try {
+                                        val count = SpbVersePatcher.applyPatches(file)
+                                        if (count > 0) "OK: ${file.name} \u2014 $count verse(s) patched"
+                                        else "OK: ${file.name} \u2014 no patches needed"
+                                    } catch (e: Exception) { "ERROR: ${file.name} \u2014 ${e.message}" }
+                                }
+                            }
+                            fixState = ConvertState.DONE
+                        }
+                    }, enabled = spbFiles.isNotEmpty()) {
+                        Icon(Icons.Default.Build, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                        Text(Strings.fixVerses)
+                    }
+                }
+                ConvertState.CONVERTING -> {
+                    Button(enabled = false, onClick = {}) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp)); Text(Strings.fixingVerses)
+                    }
+                }
+                ConvertState.DONE -> {
+                    OutlinedButton(onClick = {
+                        fixState = ConvertState.SELECT; spbFiles = emptyList(); fixLog = emptyList()
+                    }) { Text(Strings.startOver) }
+                }
+                ConvertState.PREVIEW -> {}
+            }
+        }
+
+        if (fixState == ConvertState.DONE && fixLog.isNotEmpty()) {
+            val fixedCount = fixLog.count { it.startsWith("OK") && it.contains("patched") }
+            val errCount = fixLog.count { it.startsWith("ERROR") }
+            Text(
+                Strings.doneFixed(fixedCount, errCount),
+                style = MaterialTheme.typography.titleSmall,
+                color = if (errCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+            )
+            fixLog.forEach { msg -> LogLine(msg) }
         }
     }
 }

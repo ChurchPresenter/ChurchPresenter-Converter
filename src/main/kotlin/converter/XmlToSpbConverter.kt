@@ -154,7 +154,8 @@ object XmlToSpbConverter {
                     if (versElem.nodeName != "VERS") continue
 
                     val versNum = versElem.attributes.getNamedItem("vnumber")?.nodeValue?.toIntOrNull() ?: 0
-                    val versText = versElem.textContent ?: ""
+                    val rawText = versElem.textContent ?: ""
+                    val versText = applyPatch(rawText, language, bookNum, chapNum, versNum)
                     verses.add(BibleVerse(versNum, versText))
                 }
 
@@ -219,6 +220,13 @@ object XmlToSpbConverter {
             convert(xmlFile, outputFile)
             xmlFile to outputFile
         }
+    }
+
+    private fun applyPatch(text: String, language: String?, bookNum: Int, chapNum: Int, versNum: Int): String {
+        val patch = VersePatches.PATCHES[Triple(bookNum, chapNum, versNum)] ?: return text
+        if (patch.language != null && patch.language != language?.uppercase()) return text
+        if (patch.minimumPrefixLength > 0 && text.length < patch.minimumPrefixLength) return text
+        return patch.correctedText
     }
 
     private fun getBookName(bookElem: org.w3c.dom.Node, bookNum: Int, language: String?): String {

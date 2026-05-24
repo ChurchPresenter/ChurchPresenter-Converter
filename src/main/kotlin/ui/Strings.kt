@@ -51,6 +51,11 @@ object Strings {
     val bibleTitle: String get() = bundle.getString("bible_title")
     val bibleDesc: String get() = bundle.getString("bible_desc")
     val selectXmlFiles: String get() = bundle.getString("select_xml_files")
+    val fixVersesTitle: String get() = bundle.getString("fix_verses_title")
+    val fixVersesDesc: String get() = bundle.getString("fix_verses_desc")
+    val selectSpbFiles: String get() = bundle.getString("select_spb_files")
+    val fixVerses: String get() = bundle.getString("fix_verses")
+    val fixingVerses: String get() = bundle.getString("fixing_verses")
 
     // Duplicate finder section
     val dupesTitle: String get() = bundle.getString("dupes_title")
