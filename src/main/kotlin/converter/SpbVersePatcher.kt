@@ -60,6 +60,11 @@ object SpbVersePatcher {
             val versNum = parts[3].toIntOrNull() ?: return@map line
             val currentText = parts[4].trimEnd('\r')
             val patch = VersePatches.PATCHES[Triple(bookNum, chapNum, versNum)] ?: return@map line
+            if (patch.matchText != null) {
+                if (currentText != patch.matchText) return@map line
+                patchCount++
+                return@map "${parts[0]}\t${parts[1]}\t${parts[2]}\t${parts[3]}\t${patch.correctedText}"
+            }
             if (patch.minimumPrefixLength > 0 && currentText.length < patch.minimumPrefixLength) return@map line
             if (currentText == patch.correctedText) return@map line
             if (!patch.correctedText.startsWith(currentText)) return@map line

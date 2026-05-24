@@ -225,6 +225,7 @@ object XmlToSpbConverter {
     private fun applyPatch(text: String, language: String?, bookNum: Int, chapNum: Int, versNum: Int): String {
         val patch = VersePatches.PATCHES[Triple(bookNum, chapNum, versNum)] ?: return text
         if (patch.language != null && patch.language != language?.uppercase()) return text
+        if (patch.matchText != null) return if (text == patch.matchText) patch.correctedText else text
         if (patch.minimumPrefixLength > 0 && text.length < patch.minimumPrefixLength) return text
         return patch.correctedText
     }
