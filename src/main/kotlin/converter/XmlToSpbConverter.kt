@@ -93,13 +93,13 @@ object XmlToSpbConverter {
         val root = doc.documentElement
 
         return if (root.nodeName == "bible" && root.hasAttribute("translation")) {
-            parseRussianSynodal(root, xmlFile)
+            parseSimpleBibleXml(root, xmlFile)
         } else {
             parseZefania(root, xmlFile)
         }
     }
 
-    private fun parseRussianSynodal(root: org.w3c.dom.Element, xmlFile: File): ParsedBible {
+    private fun parseSimpleBibleXml(root: org.w3c.dom.Element, xmlFile: File): ParsedBible {
         val translationName = root.getAttribute("translation").ifBlank { "Unknown" }
 
         val language = when {
