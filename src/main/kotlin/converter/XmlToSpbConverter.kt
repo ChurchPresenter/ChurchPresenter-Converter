@@ -92,6 +92,63 @@ object XmlToSpbConverter {
         val doc = builder.parse(xmlFile)
         val root = doc.documentElement
 
+        return if (root.nodeName == "bible" && root.hasAttribute("translation")) {
+            parseRussianSynodal(root, xmlFile)
+        } else {
+            parseZefania(root, xmlFile)
+        }
+    }
+
+    private fun parseRussianSynodal(root: org.w3c.dom.Element, xmlFile: File): ParsedBible {
+        val translationName = root.getAttribute("translation").ifBlank { "Unknown" }
+
+        val language = when {
+            translationName.contains("Russian", ignoreCase = true) -> "RUS"
+            translationName.contains("Ukrainian", ignoreCase = true) -> "UKR"
+            else -> "RUS"
+        }
+
+        val books = mutableListOf<BibleBook>()
+        val bookNodes = root.getElementsByTagName("book")
+
+        for (b in 0 until bookNodes.length) {
+            val bookElem = bookNodes.item(b)
+            val bookNum = bookElem.attributes.getNamedItem("number")?.nodeValue?.toIntOrNull() ?: continue
+            val bookName = BookNames.LANGUAGE_LOOKUPS[language]?.get(bookNum)
+                ?: BookNames.ENGLISH[bookNum]
+                ?: "Book $bookNum"
+
+            val chapters = mutableListOf<BibleChapter>()
+            val chapterNodes = bookElem.childNodes
+
+            for (c in 0 until chapterNodes.length) {
+                val chapElem = chapterNodes.item(c)
+                if (chapElem.nodeName != "chapter") continue
+
+                val chapNum = chapElem.attributes.getNamedItem("number")?.nodeValue?.toIntOrNull() ?: 0
+                val verses = mutableListOf<BibleVerse>()
+                val verseNodes = chapElem.childNodes
+
+                for (v in 0 until verseNodes.length) {
+                    val versElem = verseNodes.item(v)
+                    if (versElem.nodeName != "verse") continue
+
+                    val versNum = versElem.attributes.getNamedItem("number")?.nodeValue?.toIntOrNull() ?: 0
+                    val rawText = versElem.textContent ?: ""
+                    val versText = applyPatch(rawText, language, bookNum, chapNum, versNum)
+                    verses.add(BibleVerse(versNum, versText))
+                }
+
+                chapters.add(BibleChapter(chapNum, verses))
+            }
+
+            books.add(BibleBook(bookNum, bookName, chapters))
+        }
+
+        return ParsedBible(translationName, "", language, books)
+    }
+
+    private fun parseZefania(root: org.w3c.dom.Element, xmlFile: File): ParsedBible {
         val bibleName = root.getAttribute("biblename").ifBlank { "Unknown" }
 
         var description = ""
