@@ -28,14 +28,14 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.CompareArrows
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
@@ -44,9 +44,9 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Preview
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -73,7 +73,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
@@ -120,7 +120,7 @@ fun App() {
 
     Scaffold { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = selectedTab) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
@@ -435,7 +435,7 @@ fun SongsTab() {
         if (spsState == ConvertState.PREVIEW) {
             spsPreview?.let { p ->
                 if (p.error != null) {
-                    item { Text(Strings.errorPrefix(p.error ?: ""), color = MaterialTheme.colorScheme.error) }
+                    item { Text(Strings.errorPrefix(p.error), color = MaterialTheme.colorScheme.error) }
                 } else {
                     item {
                         Column {
@@ -1487,7 +1487,7 @@ fun DuplicateFinderTab() {
                                             Spacer(Modifier.weight(1f))
                                             TextButton(onClick = { Desktop.getDesktop().open(leftFile) },
                                                 modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                                                Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
+                                                Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                                 Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                             }
                                         }
@@ -1537,7 +1537,7 @@ fun DuplicateFinderTab() {
                                             Spacer(Modifier.weight(1f))
                                             TextButton(onClick = { Desktop.getDesktop().open(rightFile) },
                                                 modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                                                Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
+                                                Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                                 Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                             }
                                         }
@@ -1755,7 +1755,7 @@ fun DuplicateFinderTab() {
                                                 )
                                             }
                                             IconButton(onClick = { compareLeft = 0; compareRight = minOf(1, group.songs.size - 1); compareGroup = group }, modifier = Modifier.size(28.dp)) {
-                                                Icon(Icons.Default.CompareArrows, "Compare", Modifier.size(18.dp))
+                                                Icon(Icons.AutoMirrored.Filled.CompareArrows, "Compare", Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -2053,7 +2053,7 @@ fun BulkRenameTab() {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(entry.file.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                                    Icon(Icons.Default.ArrowForward, null, Modifier.size(14.dp).padding(horizontal = 4.dp),
+                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(14.dp).padding(horizontal = 4.dp),
                                         tint = MaterialTheme.colorScheme.primary)
                                     Text(entry.newName, style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
@@ -2070,7 +2070,7 @@ fun BulkRenameTab() {
                                             renameCompareLeft = 0
                                             renameCompareRight = 1
                                         }, modifier = Modifier.size(24.dp)) {
-                                            Icon(Icons.Default.CompareArrows, "Compare", Modifier.size(16.dp))
+                                            Icon(Icons.AutoMirrored.Filled.CompareArrows, "Compare", Modifier.size(16.dp))
                                         }
                                     }
                                     if (entry.conflict) {
@@ -2154,7 +2154,7 @@ fun BulkRenameTab() {
                                         Spacer(Modifier.weight(1f))
                                         TextButton(onClick = { Desktop.getDesktop().open(leftFileR) },
                                             modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                                            Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
+                                            Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                             Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
@@ -2191,7 +2191,7 @@ fun BulkRenameTab() {
                                         Spacer(Modifier.weight(1f))
                                         TextButton(onClick = { Desktop.getDesktop().open(rightFileR) },
                                             modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                                            Icon(Icons.Default.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
+                                            Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                             Text(Strings.open, style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
@@ -2374,11 +2374,11 @@ private fun PreviewRow(item: PreviewItem) {
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.InsertDriveFile, null, Modifier.size(16.dp))
+                Icon(Icons.AutoMirrored.Filled.InsertDriveFile, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(item.inputName, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.ArrowForward, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
                 Text(item.outputName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }

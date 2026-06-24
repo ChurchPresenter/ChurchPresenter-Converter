@@ -262,7 +262,7 @@ object MarkdownToSongConverter {
             if (labelMatch != null) {
                 // Save previous section
                 if (currentLabel != null && currentLines.any { it.isNotBlank() }) {
-                    sections.add(SongSection(currentLabel!!, currentLines.dropLastWhile { it.isBlank() }))
+                    sections.add(SongSection(currentLabel, currentLines.dropLastWhile { it.isBlank() }))
                 }
                 currentLabel = formatLabel(labelMatch.groupValues[1], labelMatch.groupValues[2])
                 currentLines = mutableListOf()
@@ -287,7 +287,7 @@ object MarkdownToSongConverter {
                 val innerLabelMatch = sectionLabelRegex.find(headingText)
                 if (innerLabelMatch != null) {
                     if (currentLabel != null && currentLines.any { it.isNotBlank() }) {
-                        sections.add(SongSection(currentLabel!!, currentLines.dropLastWhile { it.isBlank() }))
+                        sections.add(SongSection(currentLabel, currentLines.dropLastWhile { it.isBlank() }))
                     }
                     currentLabel = formatLabel(innerLabelMatch.groupValues[1], innerLabelMatch.groupValues[2])
                     currentLines = mutableListOf()
@@ -315,7 +315,7 @@ object MarkdownToSongConverter {
 
         // Add last section
         if (currentLabel != null && currentLines.any { it.isNotBlank() }) {
-            sections.add(SongSection(currentLabel!!, currentLines.dropLastWhile { it.isBlank() }))
+            sections.add(SongSection(currentLabel, currentLines.dropLastWhile { it.isBlank() }))
         }
 
         // Post-process: detect repeated sections as Chorus
