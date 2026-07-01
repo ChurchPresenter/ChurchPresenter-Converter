@@ -68,7 +68,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -76,7 +75,6 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -111,6 +109,8 @@ import java.awt.Desktop
 import java.io.File
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
+
+private val ButtonShape = RoundedCornerShape(6.dp)
 
 @Composable
 fun App() {
@@ -191,7 +191,7 @@ fun SongsTab() {
 
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
+                Button(shape = ButtonShape, onClick = {
                     val files = pickFiles("SNG Files", "sng", multiSelection = true)
                     if (files.isNotEmpty()) {
                         sngFiles = files; sngState = ConvertState.SELECT; sngPreview = emptyList(); sngLog = emptyList()
@@ -200,7 +200,7 @@ fun SongsTab() {
                     Icon(Icons.Default.FileOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                     Text(Strings.selectSngFiles)
                 }
-                Button(onClick = {
+                Button(shape = ButtonShape, onClick = {
                     val dir = pickDirectory()
                     if (dir != null) {
                         val files = dir.listFiles { f -> f.extension.equals("sng", ignoreCase = true) }?.toList() ?: emptyList()
@@ -218,7 +218,7 @@ fun SongsTab() {
 
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
+                OutlinedButton(shape = ButtonShape, onClick = {
                     val dir = pickDirectory(); if (dir != null) { sngOutputDir = dir }
                 }) {
                     Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
@@ -236,12 +236,12 @@ fun SongsTab() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (sngState) {
                     ConvertState.SELECT -> {
-                        OutlinedButton(onClick = {
+                        OutlinedButton(shape = ButtonShape, onClick = {
                             sngPreview = buildSongPreview(sngFiles, sngOutputDir); sngState = ConvertState.PREVIEW
                         }, enabled = sngFiles.isNotEmpty()) {
                             Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                         }
-                        Button(onClick = {
+                        Button(shape = ButtonShape, onClick = {
                             sngState = ConvertState.CONVERTING
                             scope.launch {
                                 sngLog = withContext(Dispatchers.IO) {
@@ -262,7 +262,7 @@ fun SongsTab() {
                         }
                     }
                     ConvertState.PREVIEW -> {
-                        Button(onClick = {
+                        Button(shape = ButtonShape, onClick = {
                             sngState = ConvertState.CONVERTING
                             scope.launch {
                                 sngLog = withContext(Dispatchers.IO) {
@@ -281,16 +281,16 @@ fun SongsTab() {
                             Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                             Text(Strings.convertNFiles(sngFiles.size))
                         }
-                        OutlinedButton(onClick = { sngState = ConvertState.SELECT; sngPreview = emptyList() }) { Text(Strings.back) }
+                        OutlinedButton(shape = ButtonShape, onClick = { sngState = ConvertState.SELECT; sngPreview = emptyList() }) { Text(Strings.back) }
                     }
                     ConvertState.CONVERTING -> {
-                        Button(enabled = false, onClick = {}) {
+                        Button(shape = ButtonShape, enabled = false, onClick = {}) {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp)); Text(Strings.converting)
                         }
                     }
                     ConvertState.DONE -> {
-                        OutlinedButton(onClick = {
+                        OutlinedButton(shape = ButtonShape, onClick = {
                             sngState = ConvertState.SELECT; sngFiles = emptyList(); sngPreview = emptyList(); sngLog = emptyList()
                         }) { Text(Strings.startOver) }
                     }
@@ -328,7 +328,7 @@ fun SongsTab() {
 
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
+                Button(shape = ButtonShape, onClick = {
                     val files = pickFiles("SPS Files", "sps", multiSelection = false)
                     if (files.isNotEmpty()) {
                         spsFile = files.first(); spsState = ConvertState.SELECT; spsPreview = null; spsLog = emptyList()
@@ -345,7 +345,7 @@ fun SongsTab() {
 
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
+                OutlinedButton(shape = ButtonShape, onClick = {
                     val dir = pickDirectory(); if (dir != null) { spsOutputDir = dir }
                 }) {
                     Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
@@ -363,12 +363,12 @@ fun SongsTab() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (spsState) {
                     ConvertState.SELECT -> {
-                        OutlinedButton(onClick = {
+                        OutlinedButton(shape = ButtonShape, onClick = {
                             spsPreview = buildSpsPreview(spsFile!!, spsOutputDir!!); spsState = ConvertState.PREVIEW
                         }, enabled = spsFile != null && spsOutputDir != null) {
                             Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                         }
-                        Button(onClick = {
+                        Button(shape = ButtonShape, onClick = {
                             spsState = ConvertState.CONVERTING
                             scope.launch {
                                 spsLog = withContext(Dispatchers.IO) {
@@ -392,7 +392,7 @@ fun SongsTab() {
                         }
                     }
                     ConvertState.PREVIEW -> {
-                        Button(onClick = {
+                        Button(shape = ButtonShape, onClick = {
                             spsState = ConvertState.CONVERTING
                             scope.launch {
                                 spsLog = withContext(Dispatchers.IO) {
@@ -414,16 +414,16 @@ fun SongsTab() {
                             Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                             Text(Strings.convertNSongs(spsPreview?.songCount ?: 0))
                         }
-                        OutlinedButton(onClick = { spsState = ConvertState.SELECT; spsPreview = null }) { Text(Strings.back) }
+                        OutlinedButton(shape = ButtonShape, onClick = { spsState = ConvertState.SELECT; spsPreview = null }) { Text(Strings.back) }
                     }
                     ConvertState.CONVERTING -> {
-                        Button(enabled = false, onClick = {}) {
+                        Button(shape = ButtonShape, enabled = false, onClick = {}) {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp)); Text(Strings.converting)
                         }
                     }
                     ConvertState.DONE -> {
-                        OutlinedButton(onClick = {
+                        OutlinedButton(shape = ButtonShape, onClick = {
                             spsState = ConvertState.SELECT; spsFile = null; spsPreview = null; spsLog = emptyList()
                         }) { Text(Strings.startOver) }
                     }
@@ -486,7 +486,7 @@ fun SongsTab() {
 
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
+                Button(shape = ButtonShape, onClick = {
                     val files = pickFiles("Documents (PDF, DOCX, PPTX)", "pdf", "docx", "pptx", multiSelection = true)
                     if (files.isNotEmpty()) {
                         docFiles = files; docState = ConvertState.SELECT
@@ -504,7 +504,7 @@ fun SongsTab() {
 
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
+                OutlinedButton(shape = ButtonShape, onClick = {
                     val dir = pickDirectory(); if (dir != null) { docOutputDir = dir }
                 }) {
                     Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
@@ -522,7 +522,7 @@ fun SongsTab() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (docState) {
                     ConvertState.SELECT -> {
-                        OutlinedButton(onClick = {
+                        OutlinedButton(shape = ButtonShape, onClick = {
                             docState = ConvertState.CONVERTING
                             scope.launch {
                                 withContext(Dispatchers.IO) {
@@ -541,7 +541,7 @@ fun SongsTab() {
                         }, enabled = docFiles.isNotEmpty()) {
                             Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                         }
-                        Button(onClick = {
+                        Button(shape = ButtonShape, onClick = {
                             docState = ConvertState.CONVERTING
                             scope.launch {
                                 docLog = withContext(Dispatchers.IO) {
@@ -572,7 +572,7 @@ fun SongsTab() {
                         }
                     }
                     ConvertState.PREVIEW -> {
-                        Button(onClick = {
+                        Button(shape = ButtonShape, onClick = {
                             docState = ConvertState.CONVERTING
                             scope.launch {
                                 docLog = withContext(Dispatchers.IO) {
@@ -601,16 +601,16 @@ fun SongsTab() {
                             Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                             Text(Strings.convertNSongs(docParsedSongs.size))
                         }
-                        OutlinedButton(onClick = { docState = ConvertState.SELECT; docParsedSongs = emptyList(); docMarkdown = "" }) { Text(Strings.back) }
+                        OutlinedButton(shape = ButtonShape, onClick = { docState = ConvertState.SELECT; docParsedSongs = emptyList(); docMarkdown = "" }) { Text(Strings.back) }
                     }
                     ConvertState.CONVERTING -> {
-                        Button(enabled = false, onClick = {}) {
+                        Button(shape = ButtonShape, enabled = false, onClick = {}) {
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp)); Text(Strings.converting)
                         }
                     }
                     ConvertState.DONE -> {
-                        OutlinedButton(onClick = {
+                        OutlinedButton(shape = ButtonShape, onClick = {
                             docState = ConvertState.SELECT; docFiles = emptyList()
                             docParsedSongs = emptyList(); docLog = emptyList(); docMarkdown = ""
                         }) { Text(Strings.startOver) }
@@ -721,7 +721,7 @@ fun BibleConverterTab() {
         Spacer(Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
+            Button(shape = ButtonShape, onClick = {
                 val files = pickFiles("XML Bible Files", "xml", multiSelection = true)
                 if (files.isNotEmpty()) {
                     inputFiles = files; state = ConvertState.SELECT; previewItems = emptyList(); logMessages = emptyList()
@@ -730,7 +730,7 @@ fun BibleConverterTab() {
                 Icon(Icons.Default.FileOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                 Text(Strings.selectXmlFiles)
             }
-            Button(onClick = {
+            Button(shape = ButtonShape, onClick = {
                 val dir = pickDirectory()
                 if (dir != null) {
                     val files = findXmlFilesRecursive(dir)
@@ -746,7 +746,7 @@ fun BibleConverterTab() {
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
+            OutlinedButton(shape = ButtonShape, onClick = {
                 val dir = pickDirectory(); if (dir != null) { outputDir = dir }
             }) {
                 Icon(Icons.Default.FolderOpen, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
@@ -762,12 +762,12 @@ fun BibleConverterTab() {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state) {
                 ConvertState.SELECT -> {
-                    OutlinedButton(onClick = {
+                    OutlinedButton(shape = ButtonShape, onClick = {
                         previewItems = buildBiblePreview(inputFiles, outputDir); state = ConvertState.PREVIEW
                     }, enabled = inputFiles.isNotEmpty()) {
                         Icon(Icons.Default.Preview, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(Strings.preview)
                     }
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         state = ConvertState.CONVERTING
                         scope.launch {
                             logMessages = withContext(Dispatchers.IO) {
@@ -788,7 +788,7 @@ fun BibleConverterTab() {
                     }
                 }
                 ConvertState.PREVIEW -> {
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         state = ConvertState.CONVERTING
                         scope.launch {
                             logMessages = withContext(Dispatchers.IO) {
@@ -807,16 +807,16 @@ fun BibleConverterTab() {
                         Icon(Icons.Default.Transform, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                         Text(Strings.convertNFiles(inputFiles.size))
                     }
-                    OutlinedButton(onClick = { state = ConvertState.SELECT; previewItems = emptyList() }) { Text(Strings.back) }
+                    OutlinedButton(shape = ButtonShape, onClick = { state = ConvertState.SELECT; previewItems = emptyList() }) { Text(Strings.back) }
                 }
                 ConvertState.CONVERTING -> {
-                    Button(enabled = false, onClick = {}) {
+                    Button(shape = ButtonShape, enabled = false, onClick = {}) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp)); Text(Strings.converting)
                     }
                 }
                 ConvertState.DONE -> {
-                    OutlinedButton(onClick = {
+                    OutlinedButton(shape = ButtonShape, onClick = {
                         state = ConvertState.SELECT; inputFiles = emptyList(); previewItems = emptyList(); logMessages = emptyList()
                     }) { Text(Strings.startOver) }
                 }
@@ -863,7 +863,7 @@ fun BibleConverterTab() {
         )
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
+            Button(shape = ButtonShape, onClick = {
                 val files = pickFiles("SPB Bible Files", "spb", multiSelection = true)
                 if (files.isNotEmpty()) {
                     spbFiles = files; fixState = ConvertState.SELECT; fixLog = emptyList()
@@ -880,7 +880,7 @@ fun BibleConverterTab() {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             when (fixState) {
                 ConvertState.SELECT -> {
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         fixState = ConvertState.CONVERTING
                         scope.launch {
                             fixLog = withContext(Dispatchers.IO) {
@@ -900,13 +900,13 @@ fun BibleConverterTab() {
                     }
                 }
                 ConvertState.CONVERTING -> {
-                    Button(enabled = false, onClick = {}) {
+                    Button(shape = ButtonShape, enabled = false, onClick = {}) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp)); Text(Strings.fixingVerses)
                     }
                 }
                 ConvertState.DONE -> {
-                    OutlinedButton(onClick = {
+                    OutlinedButton(shape = ButtonShape, onClick = {
                         fixState = ConvertState.SELECT; spbFiles = emptyList(); fixLog = emptyList()
                     }) { Text(Strings.startOver) }
                 }
@@ -1030,7 +1030,7 @@ fun DuplicateFinderTab() {
 
             // Folder picker
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
+                Button(shape = ButtonShape, onClick = {
                     val dir = pickDirectory()
                     if (dir != null) {
                         directory = dir; scanState = ScanState.IDLE; duplicateGroups = emptyList()
@@ -1075,7 +1075,7 @@ fun DuplicateFinderTab() {
             // Scan button
             when (scanState) {
                 ScanState.IDLE -> {
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         scanState = ScanState.SCANNING
                         // Check for homoglyphs first
                         scope.launch {
@@ -1096,13 +1096,13 @@ fun DuplicateFinderTab() {
                     }
                 }
                 ScanState.SCANNING -> {
-                    Button(enabled = false, onClick = {}, modifier = Modifier.fillMaxWidth()) {
+                    Button(shape = ButtonShape, enabled = false, onClick = {}, modifier = Modifier.fillMaxWidth()) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp)); Text(Strings.scanning)
                     }
                 }
                 ScanState.DONE -> {
-                    OutlinedButton(onClick = {
+                    OutlinedButton(shape = ButtonShape, onClick = {
                         scanState = ScanState.IDLE; duplicateGroups = emptyList(); expandedGroups = emptySet()
                         keepFolder = null; deleteLog = emptyList(); songFolders = emptyList(); markedForDelete = emptySet()
                     }, modifier = Modifier.fillMaxWidth()) { Text(Strings.scanAgain) }
@@ -1123,7 +1123,7 @@ fun DuplicateFinderTab() {
                     // Keep folder
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box {
-                            OutlinedButton(onClick = { keepDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(shape = ButtonShape, onClick = { keepDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
                                 Icon(Icons.Default.Shield, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                                 Text(if (keepFolder != null) keepFolder!!.name else Strings.keepFolder)
                                 Spacer(Modifier.width(4.dp))
@@ -1149,6 +1149,7 @@ fun DuplicateFinderTab() {
 
                     if (filesToDelete.isNotEmpty() && deleteLog.isEmpty()) {
                         Button(
+                            shape = ButtonShape,
                             onClick = { showDeleteConfirm = true },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                             modifier = Modifier.fillMaxWidth()
@@ -1168,7 +1169,7 @@ fun DuplicateFinderTab() {
                         Text(Strings.doneDeleted(deleted, errors),
                             style = MaterialTheme.typography.titleSmall,
                             color = if (errors > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                        Button(onClick = {
+                        Button(shape = ButtonShape, onClick = {
                             deleteLog = emptyList(); markedForDelete = emptySet()
                             expandedGroups = emptySet(); keepFolder = null
                             startScan()
@@ -1183,7 +1184,7 @@ fun DuplicateFinderTab() {
                 HorizontalDivider()
                 var homoglyphFiles by remember { mutableStateOf<List<File>?>(null) }
                 var homoglyphLog by remember { mutableStateOf<List<String>>(emptyList()) }
-                OutlinedButton(onClick = {
+                OutlinedButton(shape = ButtonShape, onClick = {
                     scope.launch {
                         homoglyphFiles = withContext(Dispatchers.IO) {
                             DuplicateFinder.findHomoglyphFiles(directory!!)
@@ -1209,7 +1210,7 @@ fun DuplicateFinderTab() {
                         Text(Strings.andNMore(homoglyphFiles!!.size - 5),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         scope.launch {
                             homoglyphLog = withContext(Dispatchers.IO) {
                                 homoglyphFiles!!.map { f ->
@@ -1239,7 +1240,7 @@ fun DuplicateFinderTab() {
                 HorizontalDivider()
                 var sanitizeFiles by remember { mutableStateOf<List<File>?>(null) }
                 var sanitizeLog by remember { mutableStateOf<List<String>>(emptyList()) }
-                OutlinedButton(onClick = {
+                OutlinedButton(shape = ButtonShape, onClick = {
                     scope.launch {
                         sanitizeFiles = withContext(Dispatchers.IO) {
                             TextUtils.findFilesWithControlChars(directory!!)
@@ -1265,7 +1266,7 @@ fun DuplicateFinderTab() {
                         Text(Strings.andNMore(sanitizeFiles!!.size - 5),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         scope.launch {
                             sanitizeLog = withContext(Dispatchers.IO) {
                                 sanitizeFiles!!.map { f ->
@@ -1321,21 +1322,13 @@ fun DuplicateFinderTab() {
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(Strings.filesPerGroup, style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(
-                        value = filterMinFiles.toString(),
-                        onValueChange = { v -> v.filter { it.isDigit() }.toIntOrNull()?.let { if (it >= 2) filterMinFiles = it } },
-                        modifier = Modifier.width(55.dp), textStyle = MaterialTheme.typography.bodySmall, singleLine = true
-                    )
+                    ConverterTextField(value = filterMinFiles.toString(), onValueChange = { v -> v.filter { it.isDigit() }.toIntOrNull()?.let { if (it >= 2) filterMinFiles = it } }, modifier = Modifier.width(55.dp))
                     Text("-", style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(
-                        value = filterMaxFiles.toString(),
-                        onValueChange = { v -> v.filter { it.isDigit() }.toIntOrNull()?.let { if (it >= 2) filterMaxFiles = it } },
-                        modifier = Modifier.width(55.dp), textStyle = MaterialTheme.typography.bodySmall, singleLine = true
-                    )
+                    ConverterTextField(value = filterMaxFiles.toString(), onValueChange = { v -> v.filter { it.isDigit() }.toIntOrNull()?.let { if (it >= 2) filterMaxFiles = it } }, modifier = Modifier.width(55.dp))
                 }
 
                 if (filterMinSimilarity > 0f || filterMinFiles > 2 || filterMaxFiles < 10 || filterCategories.size < 3) {
-                    TextButton(onClick = {
+                    TextButton(shape = ButtonShape, onClick = {
                         filterMinSimilarity = 0f; filterMinFiles = 2; filterMaxFiles = 10
                         filterCategories = setOf("Same song number", "Same title", "Similar lyrics")
                     }) {
@@ -1373,7 +1366,7 @@ fun DuplicateFinderTab() {
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         showDeleteConfirm = false
                         scope.launch {
                             deleteLog = withContext(Dispatchers.IO) {
@@ -1385,7 +1378,7 @@ fun DuplicateFinderTab() {
                         }
                     }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text(Strings.delete) }
                 },
-                dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text(Strings.cancel) } }
+                dismissButton = { OutlinedButton(shape = ButtonShape, onClick = { showDeleteConfirm = false }) { Text(Strings.cancel) } }
             )
         }
 
@@ -1406,7 +1399,7 @@ fun DuplicateFinderTab() {
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         showHomoglyphPrompt = false
                         scope.launch {
                             withContext(Dispatchers.IO) {
@@ -1417,7 +1410,7 @@ fun DuplicateFinderTab() {
                     }) { Text(Strings.fixAndScan) }
                 },
                 dismissButton = {
-                    OutlinedButton(onClick = {
+                    OutlinedButton(shape = ButtonShape, onClick = {
                         showHomoglyphPrompt = false
                         startScan()
                     }) { Text(Strings.skipAndScan) }
@@ -1434,7 +1427,7 @@ fun DuplicateFinderTab() {
                 resizable = true,
                 state = rememberDialogState(size = DpSize(900.dp, 700.dp))
             ) {
-                MaterialTheme(colorScheme = darkColorScheme()) {
+                ConverterTheme {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
                             // Top bar: file selectors + delete buttons
@@ -1448,7 +1441,7 @@ fun DuplicateFinderTab() {
                                     Text(Strings.left, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     var leftExpanded by remember { mutableStateOf(false) }
                                     Box {
-                                        OutlinedButton(onClick = { leftExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                                        OutlinedButton(shape = ButtonShape, onClick = { leftExpanded = true }, modifier = Modifier.fillMaxWidth()) {
                                             val lf = cg.songs.getOrNull(compareLeft)?.file
                                             Text(if (lf != null) "${lf.parentFile.name}/${lf.name}" else "Select",
                                                 maxLines = 1, style = MaterialTheme.typography.bodySmall)
@@ -1485,7 +1478,7 @@ fun DuplicateFinderTab() {
                                             Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                                 color = if (leftMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(Modifier.weight(1f))
-                                            TextButton(onClick = { Desktop.getDesktop().open(leftFile) },
+                                            TextButton(shape = ButtonShape, onClick = { Desktop.getDesktop().open(leftFile) },
                                                 modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                                 Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                                 Text(Strings.open, style = MaterialTheme.typography.labelSmall)
@@ -1498,7 +1491,7 @@ fun DuplicateFinderTab() {
                                     Text(Strings.right, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     var rightExpanded by remember { mutableStateOf(false) }
                                     Box {
-                                        OutlinedButton(onClick = { rightExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                                        OutlinedButton(shape = ButtonShape, onClick = { rightExpanded = true }, modifier = Modifier.fillMaxWidth()) {
                                             val rf = cg.songs.getOrNull(compareRight)?.file
                                             Text(if (rf != null) "${rf.parentFile.name}/${rf.name}" else "Select",
                                                 maxLines = 1, style = MaterialTheme.typography.bodySmall)
@@ -1535,7 +1528,7 @@ fun DuplicateFinderTab() {
                                             Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                                 color = if (rightMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                             Spacer(Modifier.weight(1f))
-                                            TextButton(onClick = { Desktop.getDesktop().open(rightFile) },
+                                            TextButton(shape = ButtonShape, onClick = { Desktop.getDesktop().open(rightFile) },
                                                 modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                                 Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                                 Text(Strings.open, style = MaterialTheme.typography.labelSmall)
@@ -1684,7 +1677,7 @@ fun DuplicateFinderTab() {
                             modifier = Modifier.weight(1f)
                         )
                         // Select duplicates in same folder
-                        TextButton(onClick = {
+                        TextButton(shape = ButtonShape, onClick = {
                             val toMark = mutableSetOf<String>()
                             for (group in filteredGroups) {
                                 // Group songs by folder, mark all but one per folder
@@ -1700,7 +1693,7 @@ fun DuplicateFinderTab() {
                             Text(Strings.selectSameFolder, style = MaterialTheme.typography.labelSmall)
                         }
                         // Expand/Collapse all
-                        TextButton(onClick = {
+                        TextButton(shape = ButtonShape, onClick = {
                             expandedGroups = if (expandedGroups.size >= filteredGroups.size)
                                 emptySet() else filteredGroups.indices.toSet()
                         }, modifier = Modifier.height(28.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
@@ -1754,7 +1747,7 @@ fun DuplicateFinderTab() {
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
-                                            IconButton(onClick = { compareLeft = 0; compareRight = minOf(1, group.songs.size - 1); compareGroup = group }, modifier = Modifier.size(28.dp)) {
+                                            IconButton(shape = ButtonShape, onClick = { compareLeft = 0; compareRight = minOf(1, group.songs.size - 1); compareGroup = group }, modifier = Modifier.size(28.dp)) {
                                                 Icon(Icons.AutoMirrored.Filled.CompareArrows, "Compare", Modifier.size(18.dp))
                                             }
                                         }
@@ -1889,7 +1882,7 @@ fun BulkRenameTab() {
         Spacer(Modifier.height(8.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
+            Button(shape = ButtonShape, onClick = {
                 val dir = pickDirectory()
                 if (dir != null) {
                     directory = dir; state = ConvertState.SELECT; preview = emptyList(); logMessages = emptyList()
@@ -1939,7 +1932,7 @@ fun BulkRenameTab() {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state) {
                 ConvertState.SELECT -> {
-                    OutlinedButton(onClick = {
+                    OutlinedButton(shape = ButtonShape, onClick = {
                         preview = buildRenamePreview(directory!!, stripNumbers, renameToFirstVerse, caseOption)
                         state = ConvertState.PREVIEW
                     }, enabled = directory != null) {
@@ -1948,7 +1941,7 @@ fun BulkRenameTab() {
                 }
                 ConvertState.PREVIEW -> {
                     val renameCount = preview.count { it.file.name != it.newName }
-                    Button(onClick = {
+                    Button(shape = ButtonShape, onClick = {
                         state = ConvertState.CONVERTING
                         scope.launch {
                             logMessages = withContext(Dispatchers.IO) {
@@ -1977,16 +1970,16 @@ fun BulkRenameTab() {
                         Icon(Icons.Default.DriveFileRenameOutline, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                         Text(Strings.renameNFiles(renameCount))
                     }
-                    OutlinedButton(onClick = { state = ConvertState.SELECT; preview = emptyList() }) { Text(Strings.back) }
+                    OutlinedButton(shape = ButtonShape, onClick = { state = ConvertState.SELECT; preview = emptyList() }) { Text(Strings.back) }
                 }
                 ConvertState.CONVERTING -> {
-                    Button(enabled = false, onClick = {}) {
+                    Button(shape = ButtonShape, enabled = false, onClick = {}) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp)); Text(Strings.renaming)
                     }
                 }
                 ConvertState.DONE -> {
-                    OutlinedButton(onClick = {
+                    OutlinedButton(shape = ButtonShape, onClick = {
                         state = ConvertState.SELECT; preview = emptyList(); logMessages = emptyList()
                     }) { Text(Strings.startOver) }
                 }
@@ -2004,6 +1997,7 @@ fun BulkRenameTab() {
                 if (renameMarkedForDelete.isNotEmpty()) {
                     var showDeleteConfirm by remember { mutableStateOf(false) }
                     Button(
+                        shape = ButtonShape,
                         onClick = { showDeleteConfirm = true },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
@@ -2016,7 +2010,7 @@ fun BulkRenameTab() {
                             title = { Text(Strings.deleteFilesTitle) },
                             text = { Text(Strings.permanentlyDeleteShort(renameMarkedForDelete.size)) },
                             confirmButton = {
-                                Button(onClick = {
+                                Button(shape = ButtonShape, onClick = {
                                     showDeleteConfirm = false
                                     scope.launch {
                                         withContext(Dispatchers.IO) {
@@ -2027,7 +2021,7 @@ fun BulkRenameTab() {
                                     }
                                 }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text(Strings.delete) }
                             },
-                            dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text(Strings.cancel) } }
+                            dismissButton = { OutlinedButton(shape = ButtonShape, onClick = { showDeleteConfirm = false }) { Text(Strings.cancel) } }
                         )
                     }
                 }
@@ -2064,7 +2058,7 @@ fun BulkRenameTab() {
                                         other.file.parentFile.canonicalPath == entry.file.parentFile.canonicalPath
                                     }
                                     if (sameNameFiles.isNotEmpty()) {
-                                        IconButton(onClick = {
+                                        IconButton(shape = ButtonShape, onClick = {
                                             val allFiles = listOf(entry.file) + sameNameFiles.map { it.file }
                                             renameCompareFiles = allFiles
                                             renameCompareLeft = 0
@@ -2118,7 +2112,7 @@ fun BulkRenameTab() {
             resizable = true,
             state = rememberDialogState(size = DpSize(900.dp, 700.dp))
         ) {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            ConverterTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
                         // File selectors + delete checkboxes
@@ -2128,7 +2122,7 @@ fun BulkRenameTab() {
                                 Text(Strings.left, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 var leftExp by remember { mutableStateOf(false) }
                                 Box {
-                                    OutlinedButton(onClick = { leftExp = true }, modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(shape = ButtonShape, onClick = { leftExp = true }, modifier = Modifier.fillMaxWidth()) {
                                         val lf = cFiles.getOrNull(renameCompareLeft)
                                         Text(if (lf != null) "${lf.parentFile.name}/${lf.name}" else "", maxLines = 1, style = MaterialTheme.typography.bodySmall)
                                         Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
@@ -2152,7 +2146,7 @@ fun BulkRenameTab() {
                                         Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                             color = if (leftMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.weight(1f))
-                                        TextButton(onClick = { Desktop.getDesktop().open(leftFileR) },
+                                        TextButton(shape = ButtonShape, onClick = { Desktop.getDesktop().open(leftFileR) },
                                             modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                             Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                             Text(Strings.open, style = MaterialTheme.typography.labelSmall)
@@ -2165,7 +2159,7 @@ fun BulkRenameTab() {
                                 Text(Strings.right, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 var rightExp by remember { mutableStateOf(false) }
                                 Box {
-                                    OutlinedButton(onClick = { rightExp = true }, modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(shape = ButtonShape, onClick = { rightExp = true }, modifier = Modifier.fillMaxWidth()) {
                                         val rf = cFiles.getOrNull(renameCompareRight)
                                         Text(if (rf != null) "${rf.parentFile.name}/${rf.name}" else "", maxLines = 1, style = MaterialTheme.typography.bodySmall)
                                         Spacer(Modifier.width(4.dp)); Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
@@ -2189,7 +2183,7 @@ fun BulkRenameTab() {
                                         Text(Strings.markForDeletion, style = MaterialTheme.typography.labelSmall,
                                             color = if (rightMarked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                                         Spacer(Modifier.weight(1f))
-                                        TextButton(onClick = { Desktop.getDesktop().open(rightFileR) },
+                                        TextButton(shape = ButtonShape, onClick = { Desktop.getDesktop().open(rightFileR) },
                                             modifier = Modifier.height(24.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                                             Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.size(14.dp)); Spacer(Modifier.width(4.dp))
                                             Text(Strings.open, style = MaterialTheme.typography.labelSmall)
