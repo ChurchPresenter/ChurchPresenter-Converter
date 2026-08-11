@@ -47,6 +47,11 @@ internal object BebliaParser {
     /** How much of the parse's byte progress is reported at once — a whole file in ~100 steps. */
     private const val PROGRESS_STEP = 0.01f
 
+    /** The three spellings each piece of root metadata appears under, in the order they are tried. */
+    private val TITLE_ATTRIBUTES = listOf("translation", "name", "language")
+    private val RIGHTS_ATTRIBUTES = listOf("status", "info", "version")
+    private val SOURCE_ATTRIBUTES = listOf("link", "site")
+
     /**
      * Language names that appear in these files' titles, mapped to codes [BookNames.LANGUAGE_LOOKUPS]
      * knows.
@@ -55,11 +60,6 @@ internal object BebliaParser {
      * converter GUI rather than the download browser. Russian precedes Ukrainian because that was the
      * order of the branches this replaced, and a handful of titles name both.
      */
-    /** The three spellings each piece of root metadata appears under, in the order they are tried. */
-    private val TITLE_ATTRIBUTES = listOf("translation", "name", "language")
-    private val RIGHTS_ATTRIBUTES = listOf("status", "info", "version")
-    private val SOURCE_ATTRIBUTES = listOf("link", "site")
-
     private val TITLE_LANGUAGES = listOf(
         "Russian" to "RUS",
         "Ukrainian" to "UKR",
