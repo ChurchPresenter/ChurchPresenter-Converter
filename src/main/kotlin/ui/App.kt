@@ -2614,23 +2614,42 @@ private val defaultDir: File = File(System.getProperty("user.home"), "Downloads"
 /** File-chooser filter label: the product name and its extension, both untranslated by nature. */
 private fun pickerLabel(source: SongSource): String = "${source.name} (${source.ext})"
 
+/**
+ * Shows a file dialog, treating a dialog that throws as a cancel.
+ *
+ * `JFileChooser` can throw out of its own focus handling — Swing's `FilePane` repaints the
+ * selection when the file list loses focus and passes `repaint` a null rectangle, which is
+ * JDK-6561072 and has been open since 2007. The exception unwinds through the caller and off the
+ * end of the event dispatch thread, killing it mid-dialog. There is nothing to retry and nothing
+ * the operator did wrong, so the dialog is taken as dismissed and the tool carries on.
+ */
+internal fun <T> dialogOrCancelled(cancelled: T, show: () -> T): T =
+    try {
+        show()
+    } catch (e: Exception) {
+        System.err.println("File dialog failed, treating as cancelled: $e")
+        cancelled
+    }
+
 private fun pickFiles(description: String, vararg extensions: String, multiSelection: Boolean): List<File> {
     val chooser = JFileChooser(defaultDir).apply {
         fileFilter = FileNameExtensionFilter(description, *extensions)
         isMultiSelectionEnabled = multiSelection
         dialogTitle = Strings.selectDialog(description)
     }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-        if (multiSelection) chooser.selectedFiles.toList() else listOfNotNull(chooser.selectedFile)
-    } else emptyList()
+    return dialogOrCancelled(emptyList()) {
+        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+            if (multiSelection) chooser.selectedFiles.toList() else listOfNotNull(chooser.selectedFile)
+        } else emptyList()
+    }
 }
 
-private fun pickDirectory(): File? {
+private fun pickDirectory(): File? = dialogOrCancelled(null) {
     val chooser = JFileChooser(defaultDir).apply {
         fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
         dialogTitle = Strings.selectFolder
     }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
+    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
 }
 
 private fun findXmlFilesRecursive(dir: File): List<File> = findFilesRecursive(dir, "xml")
